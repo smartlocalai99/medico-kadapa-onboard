@@ -138,6 +138,12 @@ export default function HospitalsTab() {
     });
   };
 
+  const extractStoragePath = (publicUrl) => {
+    if (!publicUrl) return null;
+    const match = publicUrl.match(/\/medicine-images\/(.+)$/);
+    return match ? match[1] : null;
+  };
+
   const handleDeleteHospital = async (hospId, hospName) => {
     const result = await Swal.fire({
       title: 'Are you sure?',
@@ -156,12 +162,26 @@ export default function HospitalsTab() {
     setError('');
 
     try {
+      // 1. Gather all file paths from submissions associated with this hospital BEFORE deletion
+      const hospSubs = submissions.filter(s => s.hospital_id === hospId);
+      const filePathsToDelete = hospSubs
+        .map(s => extractStoragePath(s.image_url))
+        .filter(Boolean);
+
+      // 2. Delete the hospital from DB
       const { error: deleteErr } = await supabase
         .from('hospitals')
         .delete()
         .eq('id', hospId);
 
       if (deleteErr) throw deleteErr;
+
+      // 3. Clear files from Supabase Storage
+      if (filePathsToDelete.length > 0) {
+        await supabase.storage
+          .from('medicine-images')
+          .remove(filePathsToDelete);
+      }
 
       // Update local state lists
       setHospitals(prev => prev.filter(h => h.id !== hospId));
@@ -189,7 +209,7 @@ export default function HospitalsTab() {
     }
   };
 
-  const handleDeletePhoto = async (submissionId, medicineId, medicineName) => {
+  const handleDeletePhoto = async (sub, medicineName) => {
     const result = await Swal.fire({
       title: 'Delete Tablet Photo?',
       text: `Are you sure you want to delete the tablet photo for "${medicineName}" at this hospital?`,
@@ -205,24 +225,32 @@ export default function HospitalsTab() {
 
     setLoading(true);
     try {
-      // 1. Delete from tablet_submissions
+      // 1. Delete file from Supabase Storage
+      const storagePath = extractStoragePath(sub.image_url);
+      if (storagePath) {
+        await supabase.storage
+          .from('medicine-images')
+          .remove([storagePath]);
+      }
+
+      // 2. Delete from tablet_submissions
       const { error: deleteErr } = await supabase
         .from('tablet_submissions')
         .delete()
-        .eq('id', submissionId);
+        .eq('id', sub.id);
 
       if (deleteErr) throw deleteErr;
 
-      // 2. Set medicines.image_url to null
+      // 3. Set medicines.image_url to null
       const { error: updateErr } = await supabase
         .from('medicines')
         .update({ image_url: null })
-        .eq('id', medicineId);
+        .eq('id', sub.medicine_id);
 
       if (updateErr) throw updateErr;
 
-      // 3. Update local state
-      setSubmissions(prev => prev.filter(s => s.id !== submissionId));
+      // 4. Update local state
+      setSubmissions(prev => prev.filter(s => s.id !== sub.id));
 
       Swal.fire({
         title: 'Photo Deleted!',
@@ -423,7 +451,7 @@ export default function HospitalsTab() {
                   </button>
 
                   <button
-                    onClick={() => handleDeletePhoto(sub.id, sub.medicine_id, sub.medicines?.name)}
+                    onClick={() => handleDeletePhoto(sub, sub.medicines?.name)}
                     className="p-2.5 rounded-xl border border-red-100 text-red-500 hover:bg-red-50 hover:text-red-700 transition cursor-pointer active:scale-95"
                     title="Delete photo"
                   >

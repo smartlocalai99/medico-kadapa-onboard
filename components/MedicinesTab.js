@@ -164,6 +164,12 @@ export default function MedicinesTab() {
     }
   };
 
+  const extractStoragePath = (publicUrl) => {
+    if (!publicUrl) return null;
+    const match = publicUrl.match(/\/medicine-images\/(.+)$/);
+    return match ? match[1] : null;
+  };
+
   const handleDeleteMedicine = async (medId, medName) => {
     const result = await Swal.fire({
       title: 'Are you sure?',
@@ -182,12 +188,40 @@ export default function MedicinesTab() {
     setError('');
 
     try {
+      // 1. Gather all file paths to delete from storage
+      const med = medicines.find(m => m.id === medId);
+      const pathsToDelete = [];
+      if (med) {
+        if (med.image_url) {
+          const path = extractStoragePath(med.image_url);
+          if (path) pathsToDelete.push(path);
+        }
+        if (med.tablet_submissions && med.tablet_submissions.length > 0) {
+          med.tablet_submissions.forEach(ts => {
+            if (ts.image_url) {
+              const path = extractStoragePath(ts.image_url);
+              if (path && !pathsToDelete.includes(path)) {
+                pathsToDelete.push(path);
+              }
+            }
+          });
+        }
+      }
+
+      // 2. Delete medicine from database
       const { error: deleteErr } = await supabase
         .from('medicines')
         .delete()
         .eq('id', medId);
 
       if (deleteErr) throw deleteErr;
+
+      // 3. Delete files from storage
+      if (pathsToDelete.length > 0) {
+        await supabase.storage
+          .from('medicine-images')
+          .remove(pathsToDelete);
+      }
 
       setMedicines(prev => prev.filter(m => m.id !== medId));
       
@@ -237,7 +271,27 @@ export default function MedicinesTab() {
     setError('');
 
     try {
-      // 1. Clear medicines.image_url
+      // 1. Gather files to delete from storage
+      const med = medicines.find(m => m.id === medId);
+      const pathsToDelete = [];
+      if (med) {
+        if (med.image_url) {
+          const path = extractStoragePath(med.image_url);
+          if (path) pathsToDelete.push(path);
+        }
+        if (med.tablet_submissions && med.tablet_submissions.length > 0) {
+          med.tablet_submissions.forEach(ts => {
+            if (ts.image_url) {
+              const path = extractStoragePath(ts.image_url);
+              if (path && !pathsToDelete.includes(path)) {
+                pathsToDelete.push(path);
+              }
+            }
+          });
+        }
+      }
+
+      // 2. Clear medicines.image_url from DB
       const { error: updateErr } = await supabase
         .from('medicines')
         .update({ image_url: null })
@@ -245,7 +299,7 @@ export default function MedicinesTab() {
 
       if (updateErr) throw updateErr;
 
-      // 2. Delete entries in tablet_submissions
+      // 3. Delete entries in tablet_submissions from DB
       const { error: deleteErr } = await supabase
         .from('tablet_submissions')
         .delete()
@@ -253,6 +307,13 @@ export default function MedicinesTab() {
 
       if (deleteErr) {
         console.warn('Could not delete submissions associated with medicine:', deleteErr);
+      }
+
+      // 4. Delete files from Supabase Storage
+      if (pathsToDelete.length > 0) {
+        await supabase.storage
+          .from('medicine-images')
+          .remove(pathsToDelete);
       }
 
       setMedicines(prev => prev.map(m => 
