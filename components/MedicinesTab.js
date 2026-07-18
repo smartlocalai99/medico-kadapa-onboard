@@ -179,7 +179,8 @@ export default function MedicinesTab() {
       confirmButtonColor: '#10b981',
       cancelButtonColor: '#f43f5e',
       confirmButtonText: 'Yes, delete medicine',
-      cancelButtonText: 'Cancel'
+      cancelButtonText: 'Cancel',
+      reverseButtons: true
     });
 
     if (!result.isConfirmed) return;
@@ -208,7 +209,15 @@ export default function MedicinesTab() {
         }
       }
 
-      // 2. Delete medicine from database
+      // 2. Delete entries in tablet_submissions first
+      const { error: deleteSubsErr } = await supabase
+        .from('tablet_submissions')
+        .delete()
+        .eq('medicine_id', medId);
+
+      if (deleteSubsErr) throw deleteSubsErr;
+
+      // 3. Delete medicine from database
       const { error: deleteErr } = await supabase
         .from('medicines')
         .delete()
@@ -262,7 +271,8 @@ export default function MedicinesTab() {
       confirmButtonColor: '#10b981',
       cancelButtonColor: '#f43f5e',
       confirmButtonText: 'Yes, clear photo',
-      cancelButtonText: 'Cancel'
+      cancelButtonText: 'Cancel',
+      reverseButtons: true
     });
 
     if (!result.isConfirmed) return;

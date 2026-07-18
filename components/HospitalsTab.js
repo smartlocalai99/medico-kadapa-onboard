@@ -153,7 +153,8 @@ export default function HospitalsTab() {
       confirmButtonColor: '#10b981', 
       cancelButtonColor: '#f43f5e', 
       confirmButtonText: 'Yes, delete it',
-      cancelButtonText: 'Cancel'
+      cancelButtonText: 'Cancel',
+      reverseButtons: true
     });
 
     if (!result.isConfirmed) return;
@@ -168,7 +169,15 @@ export default function HospitalsTab() {
         .map(s => extractStoragePath(s.image_url))
         .filter(Boolean);
 
-      // 2. Delete the hospital from DB
+      // 2. Delete associated submissions first to satisfy foreign keys
+      const { error: deleteSubsErr } = await supabase
+        .from('tablet_submissions')
+        .delete()
+        .eq('hospital_id', hospId);
+
+      if (deleteSubsErr) throw deleteSubsErr;
+
+      // 3. Now delete the hospital from DB
       const { error: deleteErr } = await supabase
         .from('hospitals')
         .delete()
@@ -176,7 +185,7 @@ export default function HospitalsTab() {
 
       if (deleteErr) throw deleteErr;
 
-      // 3. Clear files from Supabase Storage
+      // 4. Clear files from Supabase Storage
       if (filePathsToDelete.length > 0) {
         await supabase.storage
           .from('medicine-images')
@@ -218,7 +227,8 @@ export default function HospitalsTab() {
       confirmButtonColor: '#10b981',
       cancelButtonColor: '#f43f5e',
       confirmButtonText: 'Yes, delete photo',
-      cancelButtonText: 'Cancel'
+      cancelButtonText: 'Cancel',
+      reverseButtons: true
     });
 
     if (!result.isConfirmed) return;
