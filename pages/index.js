@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../utils/AuthContext';
+import { supabase } from '../utils/supabaseClient';
 import Layout from '../components/Layout';
 import RecordTab from '../components/RecordTab';
 import HospitalsTab from '../components/HospitalsTab';
 import MedicinesTab from '../components/MedicinesTab';
-import { Loader2, Camera } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 import { Geist, Geist_Mono } from 'next/font/google';
 
 const geistSans = Geist({
@@ -22,6 +23,12 @@ export default function Home() {
   const [activeTab, setActiveTab] = useState('record');
   const [selectedHospital, setSelectedHospital] = useState(null);
 
+  // Global Cached States
+  const [hospitals, setHospitals] = useState([]);
+  const [medicines, setMedicines] = useState([]);
+  const [submissions, setSubmissions] = useState([]);
+  const [loadingData, setLoadingData] = useState(false);
+
   // Initialize selectedHospital from localStorage on mount
   useEffect(() => {
     const saved = localStorage.getItem('medi_selected_hospital_v3');
@@ -33,6 +40,59 @@ export default function Home() {
       }
     }
   }, []);
+
+  // Fetch all databases in parallel on startup to cache them
+  useEffect(() => {
+    if (!loading) {
+      fetchAllData();
+    }
+  }, [loading]);
+
+  const fetchAllData = async () => {
+    setLoadingData(true);
+    try {
+      const [hospRes, medRes, subRes] = await Promise.all([
+        supabase.from('hospitals').select('*').order('name'),
+        supabase.from('medicines').select(`
+          *,
+          tablet_submissions (
+            hospital_id,
+            hospitals (
+              name
+            )
+          )
+        `).order('name'),
+        supabase.from('tablet_submissions').select(`
+          id,
+          hospital_id,
+          medicine_id,
+          image_url,
+          created_at,
+          medicines (
+            name,
+            category
+          )
+        `).order('created_at', { ascending: false })
+      ]);
+
+      if (hospRes.error) throw hospRes.error;
+      
+      let dbMedicines = medRes.data;
+      if (medRes.error) {
+        const fallback = await supabase.from('medicines').select('*').order('name');
+        if (fallback.error) throw fallback.error;
+        dbMedicines = fallback.data;
+      }
+
+      setHospitals(hospRes.data || []);
+      setMedicines(dbMedicines || []);
+      setSubmissions(subRes.data || []);
+    } catch (err) {
+      console.error('Error prefetching data:', err);
+    } finally {
+      setLoadingData(false);
+    }
+  };
 
   const handleHospitalChange = (hosp) => {
     setSelectedHospital(hosp);
@@ -68,18 +128,51 @@ export default function Home() {
             staffProfile={staffProfile} 
             selectedHospital={selectedHospital}
             setSelectedHospital={handleHospitalChange}
+            hospitals={hospitals}
+            medicines={medicines}
+            setMedicines={setMedicines}
+            submissions={submissions}
+            setSubmissions={setSubmissions}
+            loadingData={loadingData}
+            refreshData={fetchAllData}
           />
         );
       case 'hospitals':
-        return <HospitalsTab />;
+        return (
+          <HospitalsTab 
+            hospitals={hospitals}
+            setHospitals={setHospitals}
+            submissions={submissions}
+            setSubmissions={setSubmissions}
+            loadingData={loadingData}
+            refreshData={fetchAllData}
+            setMedicines={setMedicines}
+          />
+        );
       case 'medicines':
-        return <MedicinesTab />;
+        return (
+          <MedicinesTab 
+            medicines={medicines}
+            setMedicines={setMedicines}
+            submissions={submissions}
+            setSubmissions={setSubmissions}
+            loadingData={loadingData}
+            refreshData={fetchAllData}
+          />
+        );
       default:
         return (
           <RecordTab 
             staffProfile={staffProfile} 
             selectedHospital={selectedHospital}
             setSelectedHospital={handleHospitalChange}
+            hospitals={hospitals}
+            medicines={medicines}
+            setMedicines={setMedicines}
+            submissions={submissions}
+            setSubmissions={setSubmissions}
+            loadingData={loadingData}
+            refreshData={fetchAllData}
           />
         );
     }

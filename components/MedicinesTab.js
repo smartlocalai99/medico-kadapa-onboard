@@ -1,13 +1,18 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useRef } from 'react';
 import { supabase } from '../utils/supabaseClient';
 import { Pill, Search, Plus, Loader2, X, AlertCircle, Camera, Trash2 } from 'lucide-react';
 import Swal from 'sweetalert2';
 
 const ITEMS_PER_PAGE = 15;
 
-export default function MedicinesTab() {
-  const [medicines, setMedicines] = useState([]);
-  const [loading, setLoading] = useState(false);
+export default function MedicinesTab({ 
+  medicines, 
+  setMedicines, 
+  submissions, 
+  setSubmissions, 
+  loadingData, 
+  refreshData 
+}) {
   const [searchQuery, setSearchQuery] = useState('');
   
   // Pagination State
@@ -27,46 +32,7 @@ export default function MedicinesTab() {
   // Loading indicator states for delete actions
   const [deletingId, setDeletingId] = useState(null);
   const [clearingPhotoId, setClearingPhotoId] = useState(null);
-
-  useEffect(() => {
-    fetchMedicines();
-  }, []);
-
-  const fetchMedicines = async () => {
-    setLoading(true);
-    setError('');
-    try {
-      const { data, error: fetchErr } = await supabase
-        .from('medicines')
-        .select(`
-          *,
-          tablet_submissions (
-            hospital_id,
-            hospitals (
-              name
-            )
-          )
-        `)
-        .order('name');
-      
-      if (fetchErr) {
-        console.warn('Joined query failed. Loading fallback medicines.');
-        const { data: fallbackData, error: fallbackErr } = await supabase
-          .from('medicines')
-          .select('*')
-          .order('name');
-        if (fallbackErr) throw fallbackErr;
-        setMedicines(fallbackData || []);
-      } else {
-        setMedicines(data || []);
-      }
-    } catch (err) {
-      console.error(err);
-      setError('Failed to load medicines: ' + err.message);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const [loading, setLoading] = useState(false);
 
   const compressImage = (file) => {
     return new Promise((resolve, reject) => {
@@ -122,6 +88,12 @@ export default function MedicinesTab() {
     });
   };
 
+  const extractStoragePath = (publicUrl) => {
+    if (!publicUrl) return null;
+    const match = publicUrl.match(/\/medicine-images\/(.+)$/);
+    return match ? match[1] : null;
+  };
+
   const handleCreateMedicine = async (e) => {
     e.preventDefault();
     if (!name.trim()) {
@@ -144,7 +116,12 @@ export default function MedicinesTab() {
 
       if (insertError) throw insertError;
 
+      // Update local state reactively
       setMedicines(prev => [data, ...prev].sort((a, b) => a.name.localeCompare(b.name)));
+      
+      // Trigger background sync
+      refreshData();
+
       setIsModalOpen(false);
       setName('');
       setCategory('');
@@ -162,12 +139,6 @@ export default function MedicinesTab() {
     } finally {
       setSaving(false);
     }
-  };
-
-  const extractStoragePath = (publicUrl) => {
-    if (!publicUrl) return null;
-    const match = publicUrl.match(/\/medicine-images\/(.+)$/);
-    return match ? match[1] : null;
   };
 
   const handleDeleteMedicine = async (medId, medName) => {
@@ -225,15 +196,20 @@ export default function MedicinesTab() {
 
       if (deleteErr) throw deleteErr;
 
-      // 3. Delete files from storage
+      // 4. Delete files from storage
       if (pathsToDelete.length > 0) {
         await supabase.storage
           .from('medicine-images')
           .remove(pathsToDelete);
       }
 
+      // Update local state reactively
       setMedicines(prev => prev.filter(m => m.id !== medId));
-      
+      setSubmissions(prev => prev.filter(s => s.medicine_id !== medId));
+
+      // Trigger background sync
+      refreshData();
+
       const remainingFiltered = filteredMedicines.filter(m => m.id !== medId);
       const newTotalPages = Math.ceil(remainingFiltered.length / ITEMS_PER_PAGE);
       if (currentPage > newTotalPages && newTotalPages > 0) {
@@ -326,9 +302,14 @@ export default function MedicinesTab() {
           .remove(pathsToDelete);
       }
 
+      // Update local state reactively
       setMedicines(prev => prev.map(m => 
         m.id === medId ? { ...m, image_url: null, tablet_submissions: [] } : m
       ));
+      setSubmissions(prev => prev.filter(s => s.medicine_id !== medId));
+
+      // Trigger background sync
+      refreshData();
 
       Swal.fire({
         title: 'Photo Cleared!',
@@ -389,9 +370,13 @@ export default function MedicinesTab() {
 
         if (updateError) throw updateError;
 
+        // Update local state reactively
         setMedicines(prev => prev.map(med => 
           med.id === uploadingMedId ? { ...med, image_url: publicUrl } : med
         ));
+
+        // Sync background cache
+        refreshData();
 
         Swal.fire({
           title: 'Success!',
@@ -450,7 +435,7 @@ export default function MedicinesTab() {
           onClick={() => setIsModalOpen(true)}
           className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2.5 rounded-xl font-bold text-xs flex items-center gap-1.5 shadow-md shadow-emerald-500/10 active:scale-95 transition-all cursor-pointer"
         >
-          <Plus className="w-4 h-4 stroke-[3]" /> Add Drug
+          <Camera className="w-4 h-4 stroke-[3]" /> Add Drug
         </button>
       </div>
 
@@ -470,36 +455,7 @@ export default function MedicinesTab() {
         </div>
       )}
 
-      {error && (
-        <div className="bg-red-50 border border-red-200 text-red-700 p-4 rounded-2xl flex items-start gap-3">
-          <AlertCircle className="w-5 h-5 shrink-0 mt-0.5" />
-          <p className="text-sm font-semibold">{error}</p>
-        </div>
-      )}
-
-      {/* Search Bar */}
-      <div className="relative">
-        <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
-        <input
-          type="text"
-          placeholder="Search medicines..."
-          value={searchQuery}
-          onChange={handleSearchChange}
-          className="w-full bg-white border border-slate-200 rounded-2xl py-3.5 pl-12 pr-4 text-slate-900 placeholder-slate-400 focus:outline-none focus:border-emerald-500 focus:ring-3 focus:ring-emerald-500/10 transition-all text-sm font-medium"
-        />
-      </div>
-
-      <input
-        type="file"
-        accept="image/*"
-        capture="environment"
-        ref={fileInputRef}
-        onChange={handleFileChange}
-        className="hidden"
-      />
-
-      {/* List */}
-      {loading && !uploadingMedId && medicines.length === 0 ? (
+      {loadingData && medicines.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-12 text-slate-450 gap-2">
           <Loader2 className="w-8 h-8 animate-spin text-emerald-600" />
           <span className="text-sm font-semibold">Loading medicines...</span>

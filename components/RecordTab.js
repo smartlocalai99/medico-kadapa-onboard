@@ -2,16 +2,23 @@ import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from '../utils/supabaseClient';
 import { Camera, Check, RotateCcw, Building2, Pill, Loader2, AlertCircle, Sparkles, Search } from 'lucide-react';
 
-export default function RecordTab({ staffProfile, selectedHospital, setSelectedHospital }) {
+export default function RecordTab({ 
+  staffProfile, 
+  selectedHospital, 
+  setSelectedHospital, 
+  hospitals, 
+  medicines, 
+  setMedicines, 
+  submissions, 
+  setSubmissions, 
+  loadingData, 
+  refreshData 
+}) {
   // Selections
   const [selectedMedicine, setSelectedMedicine] = useState(null);
   const [imageFile, setImageFile] = useState(null);
   const [imagePreview, setImagePreview] = useState(null);
   const [compressedSize, setCompressedSize] = useState(null);
-
-  // Loaded Lists from Database
-  const [hospitals, setHospitals] = useState([]);
-  const [medicines, setMedicines] = useState([]);
 
   // Dropdown States
   const [showHospDropdown, setShowHospDropdown] = useState(false);
@@ -19,8 +26,6 @@ export default function RecordTab({ staffProfile, selectedHospital, setSelectedH
   const [showMedicineDropdown, setShowMedicineDropdown] = useState(false);
 
   // Loading/Error states
-  const [loadingHospitals, setLoadingHospitals] = useState(false);
-  const [loadingMedicines, setLoadingMedicines] = useState(false);
   const [compressing, setCompressing] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [submitSuccess, setSubmitSuccess] = useState(false);
@@ -30,12 +35,6 @@ export default function RecordTab({ staffProfile, selectedHospital, setSelectedH
   const fileInputRef = useRef(null);
   const medicineInputRef = useRef(null);
   const hospDropdownRef = useRef(null);
-
-  // Load hospitals & medicines once on mount
-  useEffect(() => {
-    fetchHospitals();
-    fetchMedicines();
-  }, []);
 
   // Close hospital dropdown on click outside
   useEffect(() => {
@@ -49,40 +48,6 @@ export default function RecordTab({ staffProfile, selectedHospital, setSelectedH
       document.removeEventListener("mousedown", handleClickOutside);
     };
   }, []);
-
-  const fetchHospitals = async () => {
-    setLoadingHospitals(true);
-    try {
-      const { data, error } = await supabase
-        .from('hospitals')
-        .select('*')
-        .order('name');
-      if (error) throw error;
-      setHospitals(data || []);
-    } catch (err) {
-      console.error('Error fetching hospitals:', err);
-      setErrorMessage('Could not load hospitals catalog.');
-    } finally {
-      setLoadingHospitals(false);
-    }
-  };
-
-  const fetchMedicines = async () => {
-    setLoadingMedicines(true);
-    try {
-      const { data, error } = await supabase
-        .from('medicines')
-        .select('id, name, category, image_url')
-        .order('name');
-      if (error) throw error;
-      setMedicines(data || []);
-    } catch (err) {
-      console.error('Error fetching medicines:', err);
-      setErrorMessage('Could not load medicines catalog.');
-    } finally {
-      setLoadingMedicines(false);
-    }
-  };
 
   const handleMedicineSelect = (med) => {
     setSelectedMedicine(med);
@@ -216,10 +181,23 @@ export default function RecordTab({ staffProfile, selectedHospital, setSelectedH
 
       if (updateError) throw updateError;
 
-      // Update local catalog item public URL
+      // Update local state reactive arrays instantly
       setMedicines(prev => prev.map(m => 
         m.id === selectedMedicine.id ? { ...m, image_url: publicUrl } : m
       ));
+
+      const newSub = {
+        id: 'temp-' + Date.now(),
+        hospital_id: selectedHospital.id,
+        medicine_id: selectedMedicine.id,
+        image_url: publicUrl,
+        created_at: new Date().toISOString(),
+        medicines: {
+          name: selectedMedicine.name,
+          category: selectedMedicine.category
+        }
+      };
+      setSubmissions(prev => [newSub, ...prev]);
 
       try {
         await supabase
@@ -236,6 +214,9 @@ export default function RecordTab({ staffProfile, selectedHospital, setSelectedH
       const userId = staffProfile?.id || 'anon';
       const localUploaded = localStorage.getItem(`uploads_today_${userId}`) || '0';
       localStorage.setItem(`uploads_today_${userId}`, String(parseInt(localUploaded, 10) + 1));
+
+      // Refresh in background to sync database state perfectly
+      refreshData();
 
       setSubmitSuccess(true);
       
@@ -293,7 +274,7 @@ export default function RecordTab({ staffProfile, selectedHospital, setSelectedH
               Hospital Location
             </label>
             
-            {loadingHospitals ? (
+            {loadingData && hospitals.length === 0 ? (
               <div className="w-full bg-slate-50 border border-slate-200 rounded-2xl py-4 px-5 text-slate-500 text-sm font-bold flex items-center justify-center gap-2">
                 <Loader2 className="w-4 h-4 animate-spin text-emerald-600" /> Loading hospitals...
               </div>
@@ -303,7 +284,7 @@ export default function RecordTab({ staffProfile, selectedHospital, setSelectedH
                 <button
                   type="button"
                   onClick={() => setShowHospDropdown(prev => !prev)}
-                  className="w-full bg-slate-50 hover:bg-slate-100/50 border border-slate-200 hover:border-slate-300 rounded-2xl py-4 pl-12 pr-10 text-left text-slate-900 focus:outline-none focus:border-emerald-500 focus:ring-3 focus:ring-emerald-500/10 transition-all text-sm font-bold flex items-center justify-between cursor-pointer"
+                  className="w-full bg-slate-50 hover:bg-slate-100/50 border border-slate-200 hover:border-slate-300 rounded-2xl py-4 pl-12 pr-10 text-left text-slate-900 focus:outline-none focus:border-emerald-500 transition-all text-sm font-bold flex items-center justify-between cursor-pointer"
                 >
                   <div className="flex items-center gap-3 min-w-0">
                     <Building2 className="w-5 h-5 text-emerald-600 shrink-0" />
@@ -326,7 +307,7 @@ export default function RecordTab({ staffProfile, selectedHospital, setSelectedH
                           setErrorMessage('');
                           setShowHospDropdown(false);
                         }}
-                        className="w-full text-left px-5 py-4 hover:bg-slate-50 transition-colors flex items-center gap-3 font-bold text-xs text-slate-800"
+                        className="w-full text-left px-5 py-4 hover:bg-slate-55 transition-colors flex items-center gap-3 font-bold text-xs text-slate-800"
                       >
                         <Building2 className="w-4.5 h-4.5 shrink-0 text-slate-400" />
                         <span className="truncate flex-1">
@@ -335,7 +316,7 @@ export default function RecordTab({ staffProfile, selectedHospital, setSelectedH
                       </button>
                     ))}
                     {hospitals.length === 0 && (
-                      <div className="p-4 text-center text-slate-400 text-xs">No hospitals found.</div>
+                      <div className="p-4 text-center text-slate-450 text-xs">No hospitals found.</div>
                     )}
                   </div>
                 )}
@@ -406,13 +387,13 @@ export default function RecordTab({ staffProfile, selectedHospital, setSelectedH
                   setMedicineQuery(e.target.value);
                   setShowMedicineDropdown(true);
                 }}
-                className="w-full bg-white border border-slate-200 rounded-2xl py-3.5 pl-12 pr-4 text-slate-900 placeholder-slate-400 focus:outline-none focus:border-emerald-500 focus:ring-3 focus:ring-emerald-500/10 transition-all text-sm font-medium"
+                className="w-full bg-white border border-slate-200 rounded-2xl py-3.5 pl-12 pr-4 text-slate-900 placeholder-slate-400 focus:outline-none focus:border-emerald-500 transition-all text-sm font-medium"
               />
             </div>
             
             {showMedicineDropdown && (
               <div className="absolute top-full left-0 right-0 z-50 bg-white border border-slate-200 rounded-2xl mt-2 overflow-hidden shadow-xl max-h-60 overflow-y-auto divide-y divide-slate-100">
-                {loadingMedicines ? (
+                {loadingData && medicines.length === 0 ? (
                   <div className="p-4 text-center text-slate-400 text-sm flex items-center justify-center gap-2">
                     <Loader2 className="w-4 h-4 animate-spin text-emerald-600" /> Loading medicines...
                   </div>

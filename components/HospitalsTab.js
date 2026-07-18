@@ -1,12 +1,17 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useRef } from 'react';
 import { supabase } from '../utils/supabaseClient';
 import { Building2, ArrowLeft, Trash2, Camera, Loader2, AlertCircle, Search, ChevronRight } from 'lucide-react';
 import Swal from 'sweetalert2';
 
-export default function HospitalsTab() {
-  const [hospitals, setHospitals] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [submissions, setSubmissions] = useState([]);
+export default function HospitalsTab({ 
+  hospitals, 
+  setHospitals, 
+  submissions, 
+  setSubmissions, 
+  loadingData, 
+  refreshData,
+  setMedicines
+}) {
   const [error, setError] = useState('');
 
   // Selected Hospital details view
@@ -19,66 +24,7 @@ export default function HospitalsTab() {
 
   // Deletion States
   const [deletingHospId, setDeletingHospId] = useState(null);
-
-  useEffect(() => {
-    fetchHospitalsAndSubmissions();
-  }, []);
-
-  // Fetch hospitals and submissions directly from Supabase DB
-  const fetchHospitalsAndSubmissions = async () => {
-    setLoading(true);
-    setError('');
-    try {
-      // 1. Fetch hospitals from DB
-      let dbHospitals = [];
-      const { data: dataWithCode, error: fetchWithCodeErr } = await supabase
-        .from('hospitals')
-        .select('id, name, code')
-        .order('name');
-      
-      if (fetchWithCodeErr) {
-        console.warn('Failed to query hospitals with "code". Falling back.');
-        const { data: dataFallback, error: fetchFallbackErr } = await supabase
-          .from('hospitals')
-          .select('id, name')
-          .order('name');
-        
-        if (fetchFallbackErr) throw fetchFallbackErr;
-        dbHospitals = dataFallback || [];
-      } else {
-        dbHospitals = dataWithCode || [];
-      }
-
-      setHospitals(dbHospitals);
-
-      // 2. Fetch all tablet submissions with medicine details
-      const { data: subs, error: subsErr } = await supabase
-        .from('tablet_submissions')
-        .select(`
-          id,
-          hospital_id,
-          medicine_id,
-          image_url,
-          created_at,
-          medicines (
-            name,
-            category
-          )
-        `)
-        .order('created_at', { ascending: false });
-
-      if (subsErr) {
-        console.warn('Submissions fetch failed (tablet_submissions table may not exist yet).');
-      } else {
-        setSubmissions(subs || []);
-      }
-    } catch (err) {
-      console.error('Error fetching hospitals/submissions:', err);
-      setError('Could not connect to database. Please make sure database is initialized.');
-    } finally {
-      setLoading(false);
-    }
-  };
+  const [loading, setLoading] = useState(false);
 
   const getSubmissionsForHospital = (hospitalId) => {
     return submissions.filter(s => s.hospital_id === hospitalId);
@@ -196,6 +142,9 @@ export default function HospitalsTab() {
       setHospitals(prev => prev.filter(h => h.id !== hospId));
       setSubmissions(prev => prev.filter(s => s.hospital_id !== hospId));
 
+      // Trigger background cache sync
+      refreshData();
+
       Swal.fire({
         title: 'Deleted!',
         text: `"${hospName}" has been successfully removed.`,
@@ -261,6 +210,10 @@ export default function HospitalsTab() {
 
       // 4. Update local state
       setSubmissions(prev => prev.filter(s => s.id !== sub.id));
+      setMedicines(prev => prev.map(m => m.id === sub.medicine_id ? { ...m, image_url: null } : m));
+
+      // Sync background cache
+      refreshData();
 
       Swal.fire({
         title: 'Photo Deleted!',
@@ -329,10 +282,16 @@ export default function HospitalsTab() {
 
         if (updateSubErr) throw updateSubErr;
 
-        // 5. Update local state
+        // 5. Update local state reactively
         setSubmissions(prev => prev.map(s => 
           s.id === uploadingSubmission.id ? { ...s, image_url: publicUrl } : s
         ));
+        setMedicines(prev => prev.map(m => 
+          m.id === uploadingSubmission.medicine_id ? { ...m, image_url: publicUrl } : m
+        ));
+
+        // Sync background cache
+        refreshData();
 
         Swal.fire({
           title: 'Success!',
@@ -417,7 +376,7 @@ export default function HospitalsTab() {
         </div>
 
         {/* Submissions List */}
-        {loading && submissions.length === 0 ? (
+        {loadingData && submissions.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-12 text-slate-450 gap-2">
             <Loader2 className="w-8 h-8 animate-spin text-emerald-600" />
             <span className="text-sm font-semibold">Updating catalog...</span>
@@ -494,7 +453,7 @@ export default function HospitalsTab() {
         </div>
       )}
 
-      {loading && hospitals.length === 0 ? (
+      {loadingData && hospitals.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-12 text-slate-450 gap-2">
           <Loader2 className="w-8 h-8 animate-spin text-emerald-600" />
           <span className="text-sm font-semibold">Loading hospitals...</span>
