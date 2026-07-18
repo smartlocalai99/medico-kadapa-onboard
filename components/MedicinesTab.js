@@ -68,6 +68,60 @@ export default function MedicinesTab() {
     }
   };
 
+  const compressImage = (file) => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = (event) => {
+        const img = new Image();
+        img.src = event.target.result;
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          const MAX_WIDTH_OR_HEIGHT = 1024;
+          let width = img.width;
+          let height = img.height;
+
+          if (width > height) {
+            if (width > MAX_WIDTH_OR_HEIGHT) {
+              height = Math.round(height * (MAX_WIDTH_OR_HEIGHT / width));
+              width = MAX_WIDTH_OR_HEIGHT;
+            }
+          } else {
+            if (height > MAX_WIDTH_OR_HEIGHT) {
+              width = Math.round(width * (MAX_WIDTH_OR_HEIGHT / height));
+              height = MAX_WIDTH_OR_HEIGHT;
+            }
+          }
+
+          canvas.width = width;
+          canvas.height = height;
+
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, width, height);
+
+          canvas.toBlob(
+            (blob) => {
+              if (blob) {
+                const compressedFile = new File(
+                  [blob],
+                  file.name.replace(/\.[^/.]+$/, '') + '_compressed.jpg',
+                  { type: 'image/jpeg', lastModified: Date.now() }
+                );
+                resolve(compressedFile);
+              } else {
+                reject(new Error('Canvas blob extraction failed'));
+              }
+            },
+            'image/jpeg',
+            0.70
+          );
+        };
+        img.onerror = (err) => reject(err);
+      };
+      reader.onerror = (err) => reject(err);
+    });
+  };
+
   const handleCreateMedicine = async (e) => {
     e.preventDefault();
     if (!name.trim()) {
@@ -238,13 +292,16 @@ export default function MedicinesTab() {
     if (file && uploadingMedId) {
       setLoading(true);
       try {
-        const fileExt = file.name.split('.').pop() || 'jpg';
+        // Compress image client side
+        const compressedFile = await compressImage(file);
+
+        const fileExt = compressedFile.name.split('.').pop() || 'jpg';
         const fileName = `tablets/catalog/${uploadingMedId}_${Date.now()}.${fileExt}`;
         
         // 1. Upload to storage
         const { error: uploadError } = await supabase.storage
           .from('medicine-images')
-          .upload(fileName, file, { upsert: true });
+          .upload(fileName, compressedFile, { upsert: true });
 
         if (uploadError) throw uploadError;
 
@@ -307,7 +364,7 @@ export default function MedicinesTab() {
   const percentComplete = masterCount > 0 ? Math.round((countWithImages / masterCount) * 100) : 0;
 
   return (
-    <div className="space-y-5 text-slate-800 animate-fade-in">
+    <div className="space-y-5 text-slate-800 animate-fade-in pb-16">
       
       {/* Header & Add Button */}
       <div className="flex items-center justify-between">
@@ -416,14 +473,14 @@ export default function MedicinesTab() {
                   )}
                   
                   <div className="min-w-0 flex-1">
-                    <h3 className="font-bold text-slate-850 text-sm truncate leading-snug">{med.name}</h3>
+                    <h3 className="font-bold text-slate-855 text-sm truncate leading-snug">{med.name}</h3>
                     <div className="flex flex-wrap gap-1.5 mt-1.5 items-center">
                       <span className="text-[9px] bg-slate-100 text-slate-500 px-2 py-0.5 rounded font-mono uppercase tracking-wider inline-block">
                         {med.category || 'General'}
                       </span>
                       
                       {hospitalNames.length > 0 ? (
-                        <span className="text-[9px] bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded font-bold truncate max-w-xs" title={hospitalNames.join(', ')}>
+                        <span className="text-[9px] bg-emerald-55/10 text-emerald-700 px-2 py-0.5 rounded font-bold truncate max-w-xs" title={hospitalNames.join(', ')}>
                           Hospitals: {hospitalNames.join(', ')}
                         </span>
                       ) : (
@@ -488,7 +545,7 @@ export default function MedicinesTab() {
             type="button"
             disabled={currentPage === 1}
             onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
-            className="border border-slate-200 text-slate-655 bg-white hover:bg-slate-50 font-bold px-4 py-2.5 rounded-xl transition text-xs active:scale-95 disabled:opacity-40 disabled:pointer-events-none cursor-pointer"
+            className="border border-slate-200 text-slate-655 bg-white hover:bg-slate-55 font-bold px-4 py-2.5 rounded-xl transition text-xs active:scale-95 disabled:opacity-40 disabled:pointer-events-none cursor-pointer"
           >
             Previous
           </button>
@@ -501,7 +558,7 @@ export default function MedicinesTab() {
             type="button"
             disabled={currentPage === totalPages}
             onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
-            className="border border-slate-200 text-slate-655 bg-white hover:bg-slate-50 font-bold px-4 py-2.5 rounded-xl transition text-xs active:scale-95 disabled:opacity-40 disabled:pointer-events-none cursor-pointer"
+            className="border border-slate-200 text-slate-655 bg-white hover:bg-slate-55 font-bold px-4 py-2.5 rounded-xl transition text-xs active:scale-95 disabled:opacity-40 disabled:pointer-events-none cursor-pointer"
           >
             Next
           </button>

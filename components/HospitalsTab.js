@@ -84,14 +84,68 @@ export default function HospitalsTab() {
     return submissions.filter(s => s.hospital_id === hospitalId);
   };
 
+  const compressImage = (file) => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = (event) => {
+        const img = new Image();
+        img.src = event.target.result;
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          const MAX_WIDTH_OR_HEIGHT = 1024;
+          let width = img.width;
+          let height = img.height;
+
+          if (width > height) {
+            if (width > MAX_WIDTH_OR_HEIGHT) {
+              height = Math.round(height * (MAX_WIDTH_OR_HEIGHT / width));
+              width = MAX_WIDTH_OR_HEIGHT;
+            }
+          } else {
+            if (height > MAX_WIDTH_OR_HEIGHT) {
+              width = Math.round(width * (MAX_WIDTH_OR_HEIGHT / height));
+              height = MAX_WIDTH_OR_HEIGHT;
+            }
+          }
+
+          canvas.width = width;
+          canvas.height = height;
+
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, width, height);
+
+          canvas.toBlob(
+            (blob) => {
+              if (blob) {
+                const compressedFile = new File(
+                  [blob],
+                  file.name.replace(/\.[^/.]+$/, '') + '_compressed.jpg',
+                  { type: 'image/jpeg', lastModified: Date.now() }
+                );
+                resolve(compressedFile);
+              } else {
+                reject(new Error('Canvas blob extraction failed'));
+              }
+            },
+            'image/jpeg',
+            0.70
+          );
+        };
+        img.onerror = (err) => reject(err);
+      };
+      reader.onerror = (err) => reject(err);
+    });
+  };
+
   const handleDeleteHospital = async (hospId, hospName) => {
     const result = await Swal.fire({
       title: 'Are you sure?',
       text: `You are about to delete "${hospName}". This will permanently delete this hospital and all its associated tablet photo records.`,
       icon: 'warning',
       showCancelButton: true,
-      confirmButtonColor: '#10b981', // Emerald 500
-      cancelButtonColor: '#f43f5e', // Rose 500
+      confirmButtonColor: '#10b981', 
+      cancelButtonColor: '#f43f5e', 
       confirmButtonText: 'Yes, delete it',
       cancelButtonText: 'Cancel'
     });
@@ -203,13 +257,16 @@ export default function HospitalsTab() {
     if (file && uploadingSubmission) {
       setLoading(true);
       try {
-        const fileExt = file.name.split('.').pop() || 'jpg';
+        // Compress image client side
+        const compressedFile = await compressImage(file);
+
+        const fileExt = compressedFile.name.split('.').pop() || 'jpg';
         const fileName = `tablets/${uploadingSubmission.hospital_id}/${uploadingSubmission.medicine_id}_${Date.now()}.${fileExt}`;
         
         // 1. Upload to storage
         const { error: uploadError } = await supabase.storage
           .from('medicine-images')
-          .upload(fileName, file, { upsert: true });
+          .upload(fileName, compressedFile, { upsert: true });
 
         if (uploadError) throw uploadError;
 
@@ -270,7 +327,7 @@ export default function HospitalsTab() {
 
   if (activeHospital) {
     return (
-      <div className="space-y-5 text-slate-800">
+      <div className="space-y-5 text-slate-800 pb-16">
         {/* Header with Back Button */}
         <div className="flex items-center gap-3">
           <button 
@@ -367,7 +424,7 @@ export default function HospitalsTab() {
 
                   <button
                     onClick={() => handleDeletePhoto(sub.id, sub.medicine_id, sub.medicines?.name)}
-                    className="p-2.5 rounded-xl border border-red-100 text-red-500 hover:bg-red-50 hover:text-red-700 transition cursor-pointer active:scale-95"
+                    className="p-2.5 rounded-xl border border-red-100 text-red-500 hover:bg-red-55 hover:text-red-750 transition cursor-pointer active:scale-95"
                     title="Delete photo"
                   >
                     <Trash2 className="w-3.5 h-3.5" />
@@ -383,7 +440,7 @@ export default function HospitalsTab() {
 
   // Render General Hospitals List
   return (
-    <div className="space-y-5 text-slate-800 animate-fade-in">
+    <div className="space-y-5 text-slate-800 animate-fade-in pb-16">
       <div>
         <h2 className="text-xl font-bold tracking-tight text-slate-900 flex items-center gap-2">
           <Building2 className="w-5 h-5 text-emerald-600" />
@@ -417,7 +474,7 @@ export default function HospitalsTab() {
                   onClick={() => setActiveHospital(hosp)}
                   className="flex-1 text-left flex items-center gap-3 cursor-pointer active:scale-99"
                 >
-                  <div className="bg-slate-50 text-slate-655 border border-slate-100 p-2.5 rounded-xl group-hover:bg-emerald-50 group-hover:text-emerald-650 group-hover:border-emerald-100 transition-colors">
+                  <div className="bg-slate-50 text-slate-655 border border-slate-100 p-2.5 rounded-xl group-hover:bg-emerald-55 group-hover:text-emerald-650 group-hover:border-emerald-100 transition-colors">
                     <Building2 className="w-5 h-5" />
                   </div>
                   <div>
