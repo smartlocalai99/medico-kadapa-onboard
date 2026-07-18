@@ -39,19 +39,23 @@ We pushed the schema migration file to the remote database:
   2. **Hospitals:** View all active hospital records in the DB, click to view recorded tablet photos, and replace or delete them.
   3. **Medicines:** View the master catalog, check tablet photo progress, delete medicines, clear photos, and upload images.
 
-### 🔔 6. SweetAlert2 Popups
+### ✍️ 6. Clean Production-Ready UI Texts
+- Cleaned up all developer-facing texts, database status jargon, and technical details to ensure the app is 100% customer-ready.
+- Replaced labels like "Free Plan Safe" and "Rapid camera entry flow" with user-friendly text like "Take Tablet Photo" and "Optimizing image file size...".
+
+### 🔔 7. SweetAlert2 Popups
 - Installed and fully integrated **SweetAlert2** (`Swal.fire`) for all dialog popups.
 - Custom styled SweetAlert confirms with matching emerald green and rose accents.
 - Replaced all raw browser `window.confirm` and `alert` popups inside the Medicines and Hospitals tabs.
 
-### 🏥 7. Hospitals Tab Details & Controls
+### 🏥 8. Hospitals Tab Details & Controls
 - **Overview:** Displays the list of hospitals fetched from the DB along with their unique codes and a count of how many tablet photos have been uploaded for each.
 - **Delete Hospital:** Added a **red trash bin button** next to each hospital row, allowing direct deletion of the hospital record from your database (cascading to delete its recorded tablet photos).
 - **Detailed View:** Clicking on a hospital opens a list of all tablet photos uploaded for that location.
 - **Replace/Reupload Photo:** A "Replace" button directly triggers the device camera to upload a new compressed photo for that tablet at that hospital.
 - **Delete Photo:** A trash button deletes the specific photo submission from the database and clears the medicine's master image.
 
-### 💊 8. Medicines Screen Details & Controls
+### 💊 9. Medicines Screen Details & Controls
 We added advanced catalog features to the **Medicines** tab:
 - **Pagination:** Split lists into clean **15 items per page** intervals with active Prev/Next buttons.
 - **Replace/Reupload Photo:** A "Replace" button triggers the camera to upload a new compressed image for the medicine.
