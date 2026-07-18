@@ -9,9 +9,9 @@ export default function Layout({ children, activeTab, setActiveTab }) {
   ];
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900 flex justify-center">
+    <div className="h-screen bg-slate-50 text-slate-900 flex justify-center overflow-hidden">
       {/* Mobile-first layout container */}
-      <div className="w-full max-w-md bg-white min-h-screen flex flex-col relative pb-20 shadow-xl border-x border-slate-200">
+      <div className="w-full max-w-md bg-white h-screen flex flex-col relative shadow-xl border-x border-slate-200 overflow-hidden">
         
         {/* Header */}
         <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-slate-100 px-6 py-4 flex items-center justify-between shadow-xs">
@@ -41,12 +41,12 @@ export default function Layout({ children, activeTab, setActiveTab }) {
         </header>
 
         {/* Content area */}
-        <main className="flex-1 p-5 overflow-y-auto">
+        <main className="flex-1 p-5 overflow-y-auto pb-24">
           {children}
         </main>
 
         {/* Bottom Navigation */}
-        <nav className="fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-md border-t border-slate-200/80 py-2.5 max-w-md mx-auto shadow-lg">
+        <nav className="absolute bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-md border-t border-slate-200/80 py-2.5 shadow-lg">
           <div className="grid grid-cols-3 justify-items-center">
             {tabs.map((tab) => {
               const Icon = tab.icon;
@@ -61,17 +61,16 @@ export default function Layout({ children, activeTab, setActiveTab }) {
                       : 'text-slate-400 hover:text-slate-655 hover:bg-slate-55'
                   }`}
                 >
-                  <Icon className={`w-5 h-5 mb-1 transition-transform duration-300 ${isActive ? 'stroke-[2.5px]' : 'stroke-[1.5px]'}`} />
-                  <span className="text-[10px] font-bold tracking-wider uppercase">{tab.label}</span>
+                  <Icon className="w-5.5 h-5.5" />
+                  <span className="text-[10px] font-bold mt-1 tracking-wide">{tab.label}</span>
                   {isActive && (
-                    <span className="absolute -top-1.5 w-5 h-0.75 rounded-full bg-emerald-500 shadow-md" />
+                    <span className="absolute bottom-0 w-5 h-0.5 bg-emerald-650 rounded-full" />
                   )}
                 </button>
               );
             })}
           </div>
         </nav>
-
       </div>
     </div>
   );
