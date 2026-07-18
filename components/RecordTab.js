@@ -293,9 +293,9 @@ export default function RecordTab({ staffProfile }) {
         <div>
           <h2 className="text-xl font-bold tracking-tight text-slate-900 flex items-center gap-2">
             <Sparkles className="w-5 h-5 text-emerald-600 animate-pulse" />
-            Record Tablet Image
+            Upload Tablet Photo
           </h2>
-          <p className="text-xs text-slate-500 mt-0.5">Rapid camera entry flow</p>
+          <p className="text-xs text-slate-500 mt-0.5">Upload tablet photos for medicine catalog</p>
         </div>
       </div>
 
@@ -462,7 +462,7 @@ export default function RecordTab({ staffProfile }) {
         <div className="bg-slate-50 border border-slate-200 rounded-3xl p-5 space-y-4 shadow-xs animate-slide-up">
           <label className="block text-xs font-bold text-slate-500 uppercase tracking-widest flex items-center gap-2">
             <span className="bg-slate-200 text-slate-700 w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-black">3</span>
-            Capture Tablet Image
+            Take Tablet Photo
           </label>
 
           <input
@@ -479,14 +479,14 @@ export default function RecordTab({ staffProfile }) {
               <div className="bg-emerald-555 text-white p-4 rounded-full flex items-center justify-center shadow-md shadow-emerald-500/10">
                 <Check className="w-8 h-8 stroke-[3]" />
               </div>
-              <h3 className="text-lg font-bold text-slate-850">Upload Successful!</h3>
-              <p className="text-sm text-slate-500">Database updated successfully. Resetting for next tablet...</p>
+              <h3 className="text-lg font-bold text-slate-850">Photo Saved Successfully!</h3>
+              <p className="text-sm text-slate-500">The tablet photo has been successfully saved to the medicine catalog.</p>
             </div>
           ) : compressing ? (
             <div className="border border-slate-200 bg-white rounded-2xl p-8 flex flex-col items-center justify-center text-center space-y-3 py-12 shadow-xs animate-pulse">
               <Loader2 className="w-8 h-8 animate-spin text-emerald-600" />
-              <h3 className="text-sm font-bold text-slate-800">Compressing Image...</h3>
-              <p className="text-xs text-slate-500">Resizing and encoding photo (targeting ~80KB - 120KB)...</p>
+              <h3 className="text-sm font-bold text-slate-800">Optimizing Image...</h3>
+              <p className="text-xs text-slate-500">Optimizing image file size for fast uploading...</p>
             </div>
           ) : imagePreview ? (
             <div className="space-y-4">
@@ -499,7 +499,7 @@ export default function RecordTab({ staffProfile }) {
                 
                 {compressedSize && (
                   <span className="absolute bottom-3 right-3 bg-white/90 border border-slate-200 px-2.5 py-1 rounded-lg text-[10px] font-bold text-emerald-600 tracking-wider shadow-xs">
-                    {compressedSize} KB (Free Plan Safe)
+                    Size: {compressedSize} KB
                   </span>
                 )}
               </div>
@@ -541,8 +541,8 @@ export default function RecordTab({ staffProfile }) {
                 <Camera className="w-7 h-7" />
               </div>
               <div className="text-center">
-                <span className="font-bold block text-sm text-slate-700 group-hover:text-slate-900">Open Native Camera</span>
-                <span className="text-[11px] text-slate-550 block mt-1">High-quality snapshot with flash/focus support</span>
+                <span className="font-bold block text-sm text-slate-700 group-hover:text-slate-900">Open Device Camera</span>
+                <span className="text-[11px] text-slate-550 block mt-1">Tap to take a photo of the tablets</span>
               </div>
             </button>
           )}
