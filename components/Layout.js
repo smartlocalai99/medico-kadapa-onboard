@@ -9,16 +9,16 @@ export default function Layout({ children, activeTab, setActiveTab }) {
   ];
 
   return (
-    <div className="h-screen bg-slate-50 text-slate-900 flex justify-center overflow-hidden">
+    <div className="h-[100dvh] bg-slate-50 text-slate-900 flex justify-center overflow-hidden">
       {/* Mobile-first layout container */}
-      <div className="w-full max-w-md bg-white h-screen flex flex-col relative shadow-xl border-x border-slate-200 overflow-hidden">
+      <div className="w-full max-w-md bg-white h-full flex flex-col relative shadow-xl border-x border-slate-200 overflow-hidden">
         
         {/* Header */}
-        <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-slate-100 px-6 py-4 flex items-center justify-between shadow-xs">
+        <header className="bg-white/95 backdrop-blur-md border-b border-slate-100 px-6 py-4 flex items-center justify-between shadow-xs shrink-0 z-40">
           <div className="flex items-center gap-2.5">
             <img 
               src="/logo.jpeg" 
-              alt="Medico Kadapa Logo" 
+              alt="Medico Kadapa Onboard Logo" 
               className="w-9 h-9 rounded-xl object-cover border border-slate-100 shadow-sm"
             />
             <div>
@@ -41,12 +41,12 @@ export default function Layout({ children, activeTab, setActiveTab }) {
         </header>
 
         {/* Content area */}
-        <main className="flex-1 p-5 overflow-y-auto pb-24">
+        <main className="flex-1 p-5 overflow-y-auto pb-8">
           {children}
         </main>
 
         {/* Bottom Navigation */}
-        <nav className="absolute bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-md border-t border-slate-200/80 py-2.5 shadow-lg">
+        <nav className="bg-white/95 backdrop-blur-md border-t border-slate-200/80 py-3 shadow-lg shrink-0 z-40">
           <div className="grid grid-cols-3 justify-items-center">
             {tabs.map((tab) => {
               const Icon = tab.icon;
