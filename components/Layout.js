@@ -1,7 +1,7 @@
 import React from 'react';
 import { Camera, Building2, Pill } from 'lucide-react';
 
-export default function Layout({ children, activeTab, setActiveTab }) {
+export default function Layout({ children, activeTab, setActiveTab, selectedHospital, onHospitalChange }) {
   const tabs = [
     { id: 'record', label: 'Record', icon: Camera },
     { id: 'hospitals', label: 'Hospitals', icon: Building2 },
@@ -31,13 +31,24 @@ export default function Layout({ children, activeTab, setActiveTab }) {
             </div>
           </div>
           
-          <div className="flex items-center gap-2 bg-slate-50 border border-slate-100 py-1 px-2.5 rounded-full">
-            <span className="relative flex h-2 w-2">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
-            </span>
-            <span className="text-[10px] text-slate-500 font-bold tracking-wider uppercase">Live DB</span>
-          </div>
+          {selectedHospital ? (
+            <button
+              onClick={() => onHospitalChange(null)}
+              className="flex items-center gap-1.5 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200/50 py-1.5 px-3 rounded-full text-emerald-700 font-bold transition text-[10px] uppercase cursor-pointer max-w-[140px]"
+              title="Click to change location"
+            >
+              <Building2 className="w-3.5 h-3.5 shrink-0" />
+              <span className="truncate">{selectedHospital.code || selectedHospital.name}</span>
+            </button>
+          ) : (
+            <div className="flex items-center gap-2 bg-slate-50 border border-slate-100 py-1 px-2.5 rounded-full">
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+              </span>
+              <span className="text-[10px] text-slate-500 font-bold tracking-wider uppercase">Live DB</span>
+            </div>
+          )}
         </header>
 
         {/* Content area */}

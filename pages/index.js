@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '../utils/AuthContext';
 import Layout from '../components/Layout';
 import RecordTab from '../components/RecordTab';
@@ -20,6 +20,28 @@ const geistMono = Geist_Mono({
 export default function Home() {
   const { staffProfile, loading } = useAuth();
   const [activeTab, setActiveTab] = useState('record');
+  const [selectedHospital, setSelectedHospital] = useState(null);
+
+  // Initialize selectedHospital from localStorage on mount
+  useEffect(() => {
+    const saved = localStorage.getItem('medi_selected_hospital_v3');
+    if (saved) {
+      try {
+        setSelectedHospital(JSON.parse(saved));
+      } catch (e) {
+        console.error('Error loading saved hospital:', e);
+      }
+    }
+  }, []);
+
+  const handleHospitalChange = (hosp) => {
+    setSelectedHospital(hosp);
+    if (hosp) {
+      localStorage.setItem('medi_selected_hospital_v3', JSON.stringify(hosp));
+    } else {
+      localStorage.removeItem('medi_selected_hospital_v3');
+    }
+  };
 
   // Loading Screen
   if (loading) {
@@ -41,19 +63,36 @@ export default function Home() {
   const renderActiveTab = () => {
     switch (activeTab) {
       case 'record':
-        return <RecordTab staffProfile={staffProfile} />;
+        return (
+          <RecordTab 
+            staffProfile={staffProfile} 
+            selectedHospital={selectedHospital}
+            setSelectedHospital={handleHospitalChange}
+          />
+        );
       case 'hospitals':
         return <HospitalsTab />;
       case 'medicines':
         return <MedicinesTab />;
       default:
-        return <RecordTab staffProfile={staffProfile} />;
+        return (
+          <RecordTab 
+            staffProfile={staffProfile} 
+            selectedHospital={selectedHospital}
+            setSelectedHospital={handleHospitalChange}
+          />
+        );
     }
   };
 
   return (
     <div className={`${geistSans.variable} ${geistMono.variable} font-sans antialiased`}>
-      <Layout activeTab={activeTab} setActiveTab={setActiveTab}>
+      <Layout 
+        activeTab={activeTab} 
+        setActiveTab={setActiveTab}
+        selectedHospital={selectedHospital}
+        onHospitalChange={handleHospitalChange}
+      >
         {renderActiveTab()}
       </Layout>
     </div>
