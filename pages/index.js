@@ -76,7 +76,7 @@ export default function Home() {
       ]);
 
       if (hospRes.error) throw hospRes.error;
-      
+
       let dbMedicines = medRes.data;
       if (medRes.error) {
         const fallback = await supabase.from('medicines').select('*').order('name');
@@ -107,9 +107,9 @@ export default function Home() {
   if (loading) {
     return (
       <div className={`min-h-screen bg-slate-50 text-slate-900 flex flex-col justify-center items-center gap-4 ${geistSans.variable} ${geistMono.variable} font-sans`}>
-        <img 
-          src="/logo.jpeg" 
-          alt="Medico Kadapa Logo" 
+        <img
+          src="/logo.png"
+          alt="Medico Kadapa Logo"
           className="w-12 h-12 rounded-2xl object-cover border border-slate-200 shadow-md animate-pulse"
         />
         <div className="flex items-center gap-2 text-slate-500">
@@ -124,8 +124,8 @@ export default function Home() {
     switch (activeTab) {
       case 'record':
         return (
-          <RecordTab 
-            staffProfile={staffProfile} 
+          <RecordTab
+            staffProfile={staffProfile}
             selectedHospital={selectedHospital}
             setSelectedHospital={handleHospitalChange}
             hospitals={hospitals}
@@ -139,7 +139,7 @@ export default function Home() {
         );
       case 'hospitals':
         return (
-          <HospitalsTab 
+          <HospitalsTab
             hospitals={hospitals}
             setHospitals={setHospitals}
             submissions={submissions}
@@ -151,7 +151,7 @@ export default function Home() {
         );
       case 'medicines':
         return (
-          <MedicinesTab 
+          <MedicinesTab
             medicines={medicines}
             setMedicines={setMedicines}
             submissions={submissions}
@@ -162,8 +162,8 @@ export default function Home() {
         );
       default:
         return (
-          <RecordTab 
-            staffProfile={staffProfile} 
+          <RecordTab
+            staffProfile={staffProfile}
             selectedHospital={selectedHospital}
             setSelectedHospital={handleHospitalChange}
             hospitals={hospitals}
@@ -180,8 +180,8 @@ export default function Home() {
 
   return (
     <div className={`${geistSans.variable} ${geistMono.variable} font-sans antialiased`}>
-      <Layout 
-        activeTab={activeTab} 
+      <Layout
+        activeTab={activeTab}
         setActiveTab={setActiveTab}
         selectedHospital={selectedHospital}
         onHospitalChange={handleHospitalChange}

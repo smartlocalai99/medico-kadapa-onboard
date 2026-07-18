@@ -37,9 +37,9 @@ export default function Login() {
         <div className="absolute -bottom-24 -right-24 w-48 h-48 bg-emerald-500/5 rounded-full blur-3xl" />
 
         <div className="flex flex-col items-center mb-8 relative z-10">
-          <img 
-            src="/logo.jpeg" 
-            alt="Medico Kadapa Logo" 
+          <img
+            src="/logo.png"
+            alt="Medico Kadapa Logo"
             className="w-16 h-16 rounded-2xl object-cover border border-slate-200 shadow-md mb-4 animate-pulse"
           />
           <h1 className="text-2xl font-extrabold tracking-tight text-slate-900">

@@ -10,7 +10,7 @@ We have completed the implementation of `medisin_tablet_app` utilizing a **compl
 - Redesigned all interfaces using a clean clinical light layout (`bg-white` and `bg-slate-55`).
 - Hard-locked light theme inside `globals.css` to prevent OS system dark mode styles from overriding colors.
 - Emerald green accents (`bg-emerald-600`) for clear focal actions.
-- Renamed app to **Medico Kadapa Onboard** and integrated the custom JPEG logo (`/logo.jpeg`) into the header navigation, loading screen, and auth templates.
+- Renamed app to **Medico Kadapa Onboard** and integrated the custom JPEG logo (`/logo.png`) into the header navigation, loading screen, and auth templates.
 
 ### 🏥 2. 5 Seeded Hospitals in Database (with Unique Codes)
 The 5 hospitals with unique tracking codes are now fully integrated into the database:

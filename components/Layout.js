@@ -12,13 +12,13 @@ export default function Layout({ children, activeTab, setActiveTab, selectedHosp
     <div className="h-[100dvh] bg-slate-50 text-slate-900 flex justify-center overflow-hidden">
       {/* Mobile-first layout container */}
       <div className="w-full max-w-md bg-white h-full flex flex-col relative shadow-xl border-x border-slate-200 overflow-hidden">
-        
+
         {/* Header */}
         <header className="bg-white/95 backdrop-blur-md border-b border-slate-100 px-6 py-4 flex items-center justify-between shadow-xs shrink-0 z-40">
           <div className="flex items-center gap-2.5">
-            <img 
-              src="/logo.jpeg" 
-              alt="Medico Kadapa Onboard Logo" 
+            <img
+              src="/logo.png"
+              alt="Medico Kadapa Onboard Logo"
               className="w-9 h-9 rounded-xl object-cover border border-slate-100 shadow-sm"
             />
             <div>
@@ -30,7 +30,7 @@ export default function Layout({ children, activeTab, setActiveTab, selectedHosp
               </p>
             </div>
           </div>
-          
+
           {selectedHospital ? (
             <button
               onClick={() => onHospitalChange(null)}
@@ -66,11 +66,10 @@ export default function Layout({ children, activeTab, setActiveTab, selectedHosp
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
-                  className={`flex flex-col items-center justify-center py-1 px-3 rounded-2xl transition-all duration-300 relative ${
-                    isActive
+                  className={`flex flex-col items-center justify-center py-1 px-3 rounded-2xl transition-all duration-300 relative ${isActive
                       ? 'text-emerald-600 scale-105'
                       : 'text-slate-400 hover:text-slate-655 hover:bg-slate-55'
-                  }`}
+                    }`}
                 >
                   <Icon className="w-5.5 h-5.5" />
                   <span className="text-[10px] font-bold mt-1 tracking-wide">{tab.label}</span>

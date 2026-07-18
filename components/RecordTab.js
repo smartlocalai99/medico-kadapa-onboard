@@ -2,17 +2,17 @@ import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from '../utils/supabaseClient';
 import { Camera, Check, RotateCcw, Building2, Pill, Loader2, AlertCircle, Sparkles, Search } from 'lucide-react';
 
-export default function RecordTab({ 
-  staffProfile, 
-  selectedHospital, 
-  setSelectedHospital, 
-  hospitals, 
-  medicines, 
-  setMedicines, 
-  submissions, 
-  setSubmissions, 
-  loadingData, 
-  refreshData 
+export default function RecordTab({
+  staffProfile,
+  selectedHospital,
+  setSelectedHospital,
+  hospitals,
+  medicines,
+  setMedicines,
+  submissions,
+  setSubmissions,
+  loadingData,
+  refreshData
 }) {
   // Selections
   const [selectedMedicine, setSelectedMedicine] = useState(null);
@@ -71,11 +71,11 @@ export default function RecordTab({
     if (file) {
       setErrorMessage('');
       setCompressing(true);
-      
+
       try {
         const compressed = await compressImage(file);
         setImageFile(compressed);
-        
+
         const sizeInKb = Math.round(compressed.size / 1024);
         setCompressedSize(sizeInKb);
 
@@ -102,7 +102,7 @@ export default function RecordTab({
         img.src = event.target.result;
         img.onload = () => {
           const canvas = document.createElement('canvas');
-          
+
           const MAX_WIDTH_OR_HEIGHT = 1024;
           let width = img.width;
           let height = img.height;
@@ -160,7 +160,7 @@ export default function RecordTab({
     try {
       const fileExt = imageFile.name.split('.').pop() || 'jpg';
       const fileName = `tablets/${selectedHospital.id}/${selectedMedicine.id}_${Date.now()}.${fileExt}`;
-      
+
       const { error: uploadError } = await supabase.storage
         .from('medicine-images')
         .upload(fileName, imageFile, {
@@ -182,7 +182,7 @@ export default function RecordTab({
       if (updateError) throw updateError;
 
       // Update local state reactive arrays instantly
-      setMedicines(prev => prev.map(m => 
+      setMedicines(prev => prev.map(m =>
         m.id === selectedMedicine.id ? { ...m, image_url: publicUrl } : m
       ));
 
@@ -219,7 +219,7 @@ export default function RecordTab({
       refreshData();
 
       setSubmitSuccess(true);
-      
+
       setTimeout(() => {
         handleResetForNext();
       }, 2000);
@@ -240,7 +240,7 @@ export default function RecordTab({
     setSubmitSuccess(false);
     setErrorMessage('');
     setMedicineQuery('');
-    
+
     setTimeout(() => {
       if (medicineInputRef.current) {
         medicineInputRef.current.focus();
@@ -248,7 +248,7 @@ export default function RecordTab({
     }, 100);
   };
 
-  const filteredMedicines = medicines.filter(m => 
+  const filteredMedicines = medicines.filter(m =>
     m.name.toLowerCase().includes(medicineQuery.toLowerCase())
   );
 
@@ -258,9 +258,9 @@ export default function RecordTab({
       <div className="flex flex-col items-center justify-center min-h-[70vh] p-4 text-slate-800 animate-fade-in">
         <div className="w-full max-w-sm bg-white border border-slate-200 rounded-3xl p-6 shadow-xl space-y-6 text-center" ref={hospDropdownRef}>
           <div className="flex flex-col items-center">
-            <img 
-              src="/logo.jpeg" 
-              alt="Medico Kadapa Logo" 
+            <img
+              src="/logo.png"
+              alt="Medico Kadapa Logo"
               className="w-16 h-16 rounded-2xl object-cover border border-slate-200 shadow-md mb-4"
             />
             <h2 className="text-xl font-extrabold text-slate-900 tracking-tight">Medico Kadapa Onboard</h2>
@@ -273,7 +273,7 @@ export default function RecordTab({
             <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest">
               Hospital Location
             </label>
-            
+
             {loadingData && hospitals.length === 0 ? (
               <div className="w-full bg-slate-50 border border-slate-200 rounded-2xl py-4 px-5 text-slate-500 text-sm font-bold flex items-center justify-center gap-2">
                 <Loader2 className="w-4 h-4 animate-spin text-emerald-600" /> Loading hospitals...
@@ -331,7 +331,7 @@ export default function RecordTab({
   // Active workspace once hospital is selected
   return (
     <div className="space-y-6 text-slate-800 animate-fade-in pb-16">
-      
+
       {/* Workspace Header */}
       <div>
         <h2 className="text-xl font-bold tracking-tight text-slate-900 flex items-center gap-2">
@@ -354,7 +354,7 @@ export default function RecordTab({
           <span className="bg-emerald-100 text-emerald-700 w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-black">1</span>
           Select Drug / Tablet
         </label>
-        
+
         {selectedMedicine ? (
           <div className="flex items-center justify-between bg-white border border-slate-200 p-4 rounded-2xl shadow-xs">
             <div className="flex items-center gap-3 min-w-0">
@@ -366,7 +366,7 @@ export default function RecordTab({
                 <p className="text-xs text-slate-500">Category: {selectedMedicine.category || 'General'}</p>
               </div>
             </div>
-            <button 
+            <button
               onClick={() => setSelectedMedicine(null)}
               className="text-xs font-bold text-slate-500 hover:text-slate-800 border border-slate-200 px-3.5 py-2 rounded-xl hover:bg-slate-100 active:scale-95 transition-all cursor-pointer bg-white shrink-0"
             >
@@ -390,7 +390,7 @@ export default function RecordTab({
                 className="w-full bg-white border border-slate-200 rounded-2xl py-3.5 pl-12 pr-4 text-slate-900 placeholder-slate-400 focus:outline-none focus:border-emerald-500 transition-all text-sm font-medium"
               />
             </div>
-            
+
             {showMedicineDropdown && (
               <div className="absolute top-full left-0 right-0 z-50 bg-white border border-slate-200 rounded-2xl mt-2 overflow-hidden shadow-xl max-h-60 overflow-y-auto divide-y divide-slate-100">
                 {loadingData && medicines.length === 0 ? (
@@ -411,10 +411,10 @@ export default function RecordTab({
                           <span className="text-[10px] bg-slate-100 text-slate-500 px-2 py-0.5 rounded font-mono uppercase tracking-wider mt-1 inline-block">{med.category || 'General'}</span>
                         </div>
                         {med.image_url && (
-                          <img 
-                            src={med.image_url} 
-                            alt={med.name} 
-                            className="w-8 h-8 rounded-lg object-cover border border-slate-200 shrink-0" 
+                          <img
+                            src={med.image_url}
+                            alt={med.name}
+                            className="w-8 h-8 rounded-lg object-cover border border-slate-200 shrink-0"
                           />
                         )}
                       </button>
@@ -471,14 +471,14 @@ export default function RecordTab({
                   alt="New tablet preview"
                   className="w-full h-full object-contain"
                 />
-                
+
                 {compressedSize && (
                   <span className="absolute bottom-3 right-3 bg-white/90 border border-slate-200 px-2.5 py-1 rounded-lg text-[10px] font-bold text-emerald-600 tracking-wider shadow-xs">
                     Size: {compressedSize} KB
                   </span>
                 )}
               </div>
-              
+
               <div className="flex gap-3">
                 <button
                   type="button"
