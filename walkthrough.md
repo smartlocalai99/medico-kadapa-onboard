@@ -7,9 +7,9 @@ We have completed the implementation of `medisin_tablet_app` utilizing a **compl
 ## 🌟 Final Features Implemented
 
 ### 1. ⚪ Complete Light/White Redesign & Logo Brand
-- Redesigned all interfaces using a clean clinical light layout (`bg-white` and `bg-slate-50`).
+- Redesigned all interfaces using a clean clinical light layout (`bg-white` and `bg-slate-55`).
 - Hard-locked light theme inside `globals.css` to prevent OS system dark mode styles from overriding colors.
-- Emerald green accents (`bg-emerald-555`) for clear focal actions.
+- Emerald green accents (`bg-emerald-600`) for clear focal actions.
 - Renamed app to **Medico Kadapa Onboard** and integrated the custom JPEG logo (`/logo.jpeg`) into the header navigation, loading screen, and auth templates.
 
 ### 🏥 2. 5 Seeded Hospitals in Database (with Unique Codes)
@@ -20,8 +20,10 @@ The 5 hospitals with unique tracking codes are now fully integrated into the dat
 4. **PALLA Hospitals** (`PALLA`)
 5. **Sunrise Multi Speciality Hospital** (`SUNRISE`)
 
-We pushed the schema migration file to the remote database:
+We pushed the schema migration files to the remote database:
 * [0007_tablet_app_rls_policies.sql](file:///Users/vardhanreddy/Desktop/medislash/medisin_app/supabase/migrations/0007_tablet_app_rls_policies.sql)
+* [0008_medicine_images_delete_policy.sql](file:///Users/vardhanreddy/Desktop/medislash/medisin_app/supabase/migrations/0008_medicine_images_delete_policy.sql)
+* [0009_delete_policies.sql](file:///Users/vardhanreddy/Desktop/medislash/medisin_app/supabase/migrations/0009_delete_policies.sql)
 
 ### ⚡ 3. Dynamic DB Dropdown & Selection
 - The dropdown selector in the **Record** tab and the listing in the **Hospitals** tab are now **fetched directly from the database**.
@@ -39,9 +41,12 @@ We pushed the schema migration file to the remote database:
   2. **Hospitals:** View all active hospital records in the DB, click to view recorded tablet photos, and replace or delete them.
   3. **Medicines:** View the master catalog, check tablet photo progress, delete medicines, clear photos, and upload images.
 
-### ✍️ 6. Clean Production-Ready UI Texts
-- Cleaned up all developer-facing texts, database status jargon, and technical details to ensure the app is 100% customer-ready.
-- Replaced labels like "Free Plan Safe" and "Rapid camera entry flow" with user-friendly text like "Take Tablet Photo" and "Optimizing image file size...".
+### 🛡️ 6. Backend Delete Policies (RLS)
+- Pushed a new Supabase migration [0009_delete_policies.sql](file:///Users/vardhanreddy/Desktop/medislash/medisin_app/supabase/migrations/0009_delete_policies.sql) defining the missing delete RLS policies on:
+  - `tablet_submissions`
+  - `hospitals`
+  - `medicines`
+- Granted `DELETE` privileges for the `anon` (anonymous) and `authenticated` database roles, resolving the database deletion block.
 
 ### 🔔 7. SweetAlert2 Popups
 - Installed and fully integrated **SweetAlert2** (`Swal.fire`) for all dialog popups.
