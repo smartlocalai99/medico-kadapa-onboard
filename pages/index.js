@@ -30,7 +30,7 @@ export default function Home() {
           alt="Medico Kadapa Logo" 
           className="w-12 h-12 rounded-2xl object-cover border border-slate-200 shadow-md animate-pulse"
         />
-        <div className="flex items-center gap-2 text-slate-550">
+        <div className="flex items-center gap-2 text-slate-500">
           <Loader2 className="w-5 h-5 animate-spin text-emerald-600" />
           <span className="text-sm font-semibold tracking-wide uppercase">Initializing Medico Kadapa Onboard...</span>
         </div>

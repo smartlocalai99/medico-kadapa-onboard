@@ -335,7 +335,7 @@ export default function HospitalsTab() {
               setActiveHospital(null);
               setDetailSearchQuery('');
             }}
-            className="p-2 hover:bg-slate-100 rounded-xl border border-slate-200 text-slate-655 transition cursor-pointer active:scale-95 bg-white"
+            className="p-2 hover:bg-slate-100 rounded-xl border border-slate-200 text-slate-600 transition cursor-pointer active:scale-95 bg-white"
           >
             <ArrowLeft className="w-5 h-5" />
           </button>
@@ -374,7 +374,7 @@ export default function HospitalsTab() {
             placeholder="Search tablet photos..."
             value={detailSearchQuery}
             onChange={(e) => setDetailSearchQuery(e.target.value)}
-            className="w-full bg-white border border-slate-255 rounded-2xl py-3.5 pl-12 pr-4 text-slate-900 placeholder-slate-400 focus:outline-none focus:border-emerald-500 focus:ring-3 focus:ring-emerald-500/10 transition-all text-sm font-medium"
+            className="w-full bg-white border border-slate-200 rounded-2xl py-3.5 pl-12 pr-4 text-slate-900 placeholder-slate-400 focus:outline-none focus:border-emerald-500"
           />
         </div>
 
@@ -416,7 +416,7 @@ export default function HospitalsTab() {
                 <div className="flex items-center gap-1.5 shrink-0">
                   <button
                     onClick={() => handleReuploadClick(sub)}
-                    className="text-[10px] font-bold uppercase tracking-wider px-3.5 py-2.5 rounded-xl transition-all border border-slate-200 text-slate-500 hover:bg-slate-55 hover:text-slate-700 bg-white cursor-pointer active:scale-95 flex items-center gap-1"
+                    className="text-[10px] font-bold uppercase tracking-wider px-3.5 py-2.5 rounded-xl transition-all border border-slate-200 text-slate-500 hover:bg-slate-100 hover:text-slate-700 bg-white cursor-pointer active:scale-95 flex items-center gap-1"
                   >
                     <Camera className="w-3.5 h-3.5" />
                     Replace
@@ -424,7 +424,7 @@ export default function HospitalsTab() {
 
                   <button
                     onClick={() => handleDeletePhoto(sub.id, sub.medicine_id, sub.medicines?.name)}
-                    className="p-2.5 rounded-xl border border-red-100 text-red-500 hover:bg-red-55 hover:text-red-750 transition cursor-pointer active:scale-95"
+                    className="p-2.5 rounded-xl border border-red-100 text-red-500 hover:bg-red-50 hover:text-red-700 transition cursor-pointer active:scale-95"
                     title="Delete photo"
                   >
                     <Trash2 className="w-3.5 h-3.5" />
@@ -474,17 +474,17 @@ export default function HospitalsTab() {
                   onClick={() => setActiveHospital(hosp)}
                   className="flex-1 text-left flex items-center gap-3 cursor-pointer active:scale-99"
                 >
-                  <div className="bg-slate-50 text-slate-655 border border-slate-100 p-2.5 rounded-xl group-hover:bg-emerald-55 group-hover:text-emerald-650 group-hover:border-emerald-100 transition-colors">
+                  <div className="bg-slate-50 text-slate-600 border border-slate-100 p-2.5 rounded-xl group-hover:bg-emerald-50 group-hover:text-emerald-600 group-hover:border-emerald-100 transition-colors">
                     <Building2 className="w-5 h-5" />
                   </div>
                   <div>
                     <h3 className="font-bold text-slate-850 leading-snug">{hosp.name}</h3>
                     <div className="flex items-center gap-2 mt-1">
-                      <span className="text-[10px] bg-slate-100 text-slate-550 px-2 py-0.5 rounded font-mono font-black tracking-wider">
+                      <span className="text-[10px] bg-slate-100 text-slate-500 px-2 py-0.5 rounded font-mono font-black tracking-wider">
                         CODE: {hosp.code || 'NONE'}
                       </span>
                       <span className="text-[10px] text-slate-400 font-bold">•</span>
-                      <span className="text-[10px] text-emerald-650 font-bold">
+                      <span className="text-[10px] text-emerald-600 font-bold">
                         {count} {count === 1 ? 'tablet' : 'tablets'} photographed
                       </span>
                     </div>
@@ -495,7 +495,7 @@ export default function HospitalsTab() {
                   <button
                     onClick={() => handleDeleteHospital(hosp.id, hosp.name)}
                     disabled={deletingHospId === hosp.id}
-                    className="p-2.5 rounded-xl border border-red-100 text-red-500 hover:bg-red-50 hover:text-red-755 transition cursor-pointer active:scale-95"
+                    className="p-2.5 rounded-xl border border-red-100 text-red-500 hover:bg-red-50 hover:text-red-700 transition cursor-pointer active:scale-95"
                     title="Delete Hospital"
                   >
                     {deletingHospId === hosp.id ? (

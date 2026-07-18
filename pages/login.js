@@ -99,7 +99,7 @@ export default function Login() {
 
           <button
             type="submit"
-            className="w-full bg-emerald-555 hover:bg-emerald-600 text-white font-bold py-4 rounded-2xl transition-all duration-300 flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/10 active:scale-98 disabled:opacity-50 disabled:pointer-events-none mt-2 cursor-pointer text-sm"
+            className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-4 rounded-2xl transition-all duration-300 flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/10 active:scale-98 disabled:opacity-50 disabled:pointer-events-none mt-2 cursor-pointer text-sm"
             disabled={loading}
           >
             {loading ? (

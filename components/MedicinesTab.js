@@ -377,7 +377,7 @@ export default function MedicinesTab() {
         </div>
         <button
           onClick={() => setIsModalOpen(true)}
-          className="bg-emerald-555 hover:bg-emerald-600 text-white px-4 py-2.5 rounded-xl font-bold text-xs flex items-center gap-1.5 shadow-md shadow-emerald-500/10 active:scale-95 transition-all cursor-pointer"
+          className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2.5 rounded-xl font-bold text-xs flex items-center gap-1.5 shadow-md shadow-emerald-500/10 active:scale-95 transition-all cursor-pointer"
         >
           <Plus className="w-4 h-4 stroke-[3]" /> Add Drug
         </button>
@@ -392,7 +392,7 @@ export default function MedicinesTab() {
           </div>
           <div className="w-full bg-slate-100 h-2.5 rounded-full overflow-hidden border border-slate-200/50">
             <div 
-              className="bg-emerald-550 h-full rounded-full transition-all duration-500 shadow-xs" 
+              className="bg-emerald-600 h-full rounded-full transition-all duration-500 shadow-xs" 
               style={{ width: `${percentComplete}%` }}
             />
           </div>
@@ -414,7 +414,7 @@ export default function MedicinesTab() {
           placeholder="Search medicines..."
           value={searchQuery}
           onChange={handleSearchChange}
-          className="w-full bg-white border border-slate-255 rounded-2xl py-3.5 pl-12 pr-4 text-slate-900 placeholder-slate-400 focus:outline-none focus:border-emerald-500 focus:ring-3 focus:ring-emerald-500/10 transition-all text-sm font-medium"
+          className="w-full bg-white border border-slate-200 rounded-2xl py-3.5 pl-12 pr-4 text-slate-900 placeholder-slate-400 focus:outline-none focus:border-emerald-500 focus:ring-3 focus:ring-emerald-500/10 transition-all text-sm font-medium"
         />
       </div>
 
@@ -473,14 +473,14 @@ export default function MedicinesTab() {
                   )}
                   
                   <div className="min-w-0 flex-1">
-                    <h3 className="font-bold text-slate-855 text-sm truncate leading-snug">{med.name}</h3>
+                    <h3 className="font-bold text-slate-800 text-sm truncate leading-snug">{med.name}</h3>
                     <div className="flex flex-wrap gap-1.5 mt-1.5 items-center">
                       <span className="text-[9px] bg-slate-100 text-slate-500 px-2 py-0.5 rounded font-mono uppercase tracking-wider inline-block">
                         {med.category || 'General'}
                       </span>
                       
                       {hospitalNames.length > 0 ? (
-                        <span className="text-[9px] bg-emerald-55/10 text-emerald-700 px-2 py-0.5 rounded font-bold truncate max-w-xs" title={hospitalNames.join(', ')}>
+                        <span className="text-[9px] bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded font-bold truncate max-w-xs" title={hospitalNames.join(', ')}>
                           Hospitals: {hospitalNames.join(', ')}
                         </span>
                       ) : (
@@ -497,7 +497,7 @@ export default function MedicinesTab() {
                     onClick={() => handleImageClick(med.id)}
                     className={`text-[10px] font-bold uppercase tracking-wider px-3 py-2.5 rounded-xl transition-all border flex items-center gap-1 cursor-pointer active:scale-95 ${
                       med.image_url
-                        ? 'border-slate-200 text-slate-500 hover:bg-slate-55 hover:text-slate-700 bg-white'
+                        ? 'border-slate-200 text-slate-500 hover:bg-slate-100 hover:text-slate-700 bg-white'
                         : 'border-emerald-500/30 text-emerald-600 bg-emerald-50/30 hover:bg-emerald-50'
                     }`}
                   >
@@ -522,7 +522,7 @@ export default function MedicinesTab() {
                   <button
                     onClick={() => handleDeleteMedicine(med.id, med.name)}
                     disabled={deletingId === med.id}
-                    className="p-2.5 rounded-xl border border-red-100 text-red-550 hover:bg-red-50 hover:text-red-700 transition cursor-pointer active:scale-95"
+                    className="p-2.5 rounded-xl border border-red-100 text-red-500 hover:bg-red-50 hover:text-red-700 transition cursor-pointer active:scale-95"
                     title="Delete medicine"
                   >
                     {deletingId === med.id ? (
@@ -545,7 +545,7 @@ export default function MedicinesTab() {
             type="button"
             disabled={currentPage === 1}
             onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
-            className="border border-slate-200 text-slate-655 bg-white hover:bg-slate-55 font-bold px-4 py-2.5 rounded-xl transition text-xs active:scale-95 disabled:opacity-40 disabled:pointer-events-none cursor-pointer"
+            className="border border-slate-200 text-slate-655 bg-white hover:bg-slate-100 font-bold px-4 py-2.5 rounded-xl transition text-xs active:scale-95 disabled:opacity-40 disabled:pointer-events-none cursor-pointer"
           >
             Previous
           </button>
@@ -558,7 +558,7 @@ export default function MedicinesTab() {
             type="button"
             disabled={currentPage === totalPages}
             onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
-            className="border border-slate-200 text-slate-655 bg-white hover:bg-slate-55 font-bold px-4 py-2.5 rounded-xl transition text-xs active:scale-95 disabled:opacity-40 disabled:pointer-events-none cursor-pointer"
+            className="border border-slate-200 text-slate-655 bg-white hover:bg-slate-100 font-bold px-4 py-2.5 rounded-xl transition text-xs active:scale-95 disabled:opacity-40 disabled:pointer-events-none cursor-pointer"
           >
             Next
           </button>
@@ -572,7 +572,7 @@ export default function MedicinesTab() {
             
             <button 
               onClick={() => setIsModalOpen(false)}
-              className="absolute top-4 right-4 text-slate-400 hover:text-slate-700 border border-slate-100 p-1.5 rounded-xl hover:bg-slate-55 transition"
+              className="absolute top-4 right-4 text-slate-400 hover:text-slate-700 border border-slate-100 p-1.5 rounded-xl hover:bg-slate-100 transition"
             >
               <X className="w-4 h-4" />
             </button>
@@ -598,7 +598,7 @@ export default function MedicinesTab() {
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   placeholder="e.g. Paracetamol 650mg"
-                  className="w-full bg-white border border-slate-255 rounded-xl py-3 px-4 text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:border-emerald-500"
+                  className="w-full bg-white border border-slate-200 rounded-xl py-3 px-4 text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:border-emerald-500"
                 />
               </div>
 
@@ -611,7 +611,7 @@ export default function MedicinesTab() {
                   value={category}
                   onChange={(e) => setCategory(e.target.value)}
                   placeholder="e.g. Analgesic, Antibiotic, etc."
-                  className="w-full bg-white border border-slate-255 rounded-xl py-3 px-4 text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:border-emerald-500"
+                  className="w-full bg-white border border-slate-200 rounded-xl py-3 px-4 text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:border-emerald-500"
                 />
               </div>
 
@@ -620,14 +620,14 @@ export default function MedicinesTab() {
                   type="button"
                   onClick={() => setIsModalOpen(false)}
                   disabled={saving}
-                  className="flex-1 border border-slate-200 text-slate-655 bg-white hover:bg-slate-55 font-bold py-3 rounded-xl transition text-sm active:scale-98"
+                  className="flex-1 border border-slate-200 text-slate-655 bg-white hover:bg-slate-100 font-bold py-3 rounded-xl transition text-sm active:scale-98"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={saving}
-                  className="flex-1 bg-emerald-555 hover:bg-emerald-600 text-white font-bold py-3 rounded-xl transition flex items-center justify-center gap-1.5 text-sm shadow-md shadow-emerald-500/10 active:scale-98 cursor-pointer"
+                  className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 rounded-xl transition flex items-center justify-center gap-1.5 text-sm shadow-md shadow-emerald-500/10 active:scale-98 cursor-pointer"
                 >
                   {saving ? (
                     <>
