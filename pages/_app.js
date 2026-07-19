@@ -1,9 +1,12 @@
 import "@/styles/globals.css";
 import { AuthProvider } from '../utils/AuthContext';
 import Head from 'next/head';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
+import SplashScreen from '../components/SplashScreen';
 
 export default function App({ Component, pageProps }) {
+  const [showSplash, setShowSplash] = useState(true);
+
   useEffect(() => {
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', function () {
@@ -30,6 +33,9 @@ export default function App({ Component, pageProps }) {
         <link rel="manifest" href="/manifest.json" />
         <meta name="theme-color" content="#10b981" />
       </Head>
+      {showSplash && (
+        <SplashScreen onComplete={() => setShowSplash(false)} />
+      )}
       <Component {...pageProps} />
     </AuthProvider>
   );

@@ -33,8 +33,8 @@ export default function Login() {
     <div className="min-h-screen bg-slate-50 text-slate-800 flex justify-center items-center p-4">
       <div className="w-full max-w-md bg-white rounded-3xl border border-slate-200 p-8 shadow-2xl relative overflow-hidden">
         {/* Decorative ambient light */}
-        <div className="absolute -top-24 -left-24 w-48 h-48 bg-emerald-500/5 rounded-full blur-3xl" />
-        <div className="absolute -bottom-24 -right-24 w-48 h-48 bg-emerald-500/5 rounded-full blur-3xl" />
+        <div className="absolute -top-24 -left-24 w-48 h-48 " />
+        <div className="absolute -bottom-24 -right-24 w-48 h-48 " />
 
         <div className="flex flex-col items-center mb-8 relative z-10">
           <img

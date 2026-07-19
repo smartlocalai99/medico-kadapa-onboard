@@ -19,7 +19,7 @@ export default function Layout({ children, activeTab, setActiveTab, selectedHosp
             <img
               src="/logo.png"
               alt="Medico Kadapa Onboard Logo"
-              className="w-9 h-9 rounded-xl object-cover border border-slate-100 shadow-sm"
+              className="w-14 h-14 object-cover"  
             />
             <div>
               <h1 className="text-lg font-black tracking-tight text-slate-900 leading-tight">
@@ -42,11 +42,7 @@ export default function Layout({ children, activeTab, setActiveTab, selectedHosp
             </button>
           ) : (
             <div className="flex items-center gap-2 bg-slate-50 border border-slate-100 py-1 px-2.5 rounded-full">
-              <span className="relative flex h-2 w-2">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
-              </span>
-              <span className="text-[10px] text-slate-500 font-bold tracking-wider uppercase">Live DB</span>
+           
             </div>
           )}
         </header>
