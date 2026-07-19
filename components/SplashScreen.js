@@ -1,8 +1,8 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
+import Image from 'next/image';
 
 export default function SplashScreen({ onComplete }) {
   const [fadeAway, setFadeAway] = useState(false);
-  const videoRef = useRef(null);
 
   const handleComplete = useCallback(() => {
     setFadeAway(true);
@@ -20,45 +20,22 @@ export default function SplashScreen({ onComplete }) {
     return () => clearTimeout(timeout);
   }, [handleComplete]);
 
-  useEffect(() => {
-    const video = videoRef.current;
-    if (!video) return undefined;
-
-    // Mobile browsers require muted, inline playback to be set before play().
-    video.defaultMuted = true;
-    video.muted = true;
-    video.playsInline = true;
-    video.controls = false;
-
-    const startPlayback = () => {
-      const playback = video.play();
-      if (playback) playback.catch(() => {});
-    };
-
-    video.addEventListener('canplay', startPlayback);
-    startPlayback();
-
-    return () => video.removeEventListener('canplay', startPlayback);
-  }, []);
-
   return (
     <div
       className={`fixed inset-0 z-[9999] bg-black transition-opacity duration-600 ease-in-out ${
         fadeAway ? 'opacity-0 pointer-events-none' : 'opacity-100'
       }`}
     >
-      {/* Video Player - Full Screen */}
-      <video
-        ref={videoRef}
-        src="/splashscreen.mp4"
-        autoPlay
-        muted
-        playsInline
-        controls={false}
-        disablePictureInPicture
-        preload="auto"
-        onEnded={handleComplete}
-        className="splash-video absolute inset-0 w-full h-full object-cover pointer-events-none"
+      {/* Animated image avoids native mobile video controls entirely. */}
+      <Image
+        src="/splashscreen.webp"
+        alt=""
+        aria-hidden="true"
+        fill
+        priority
+        unoptimized
+        sizes="100vw"
+        className="object-cover pointer-events-none"
       />
 
       {/* Skip button in top right */}
