@@ -1,8 +1,15 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 
 export default function SplashScreen({ onComplete }) {
   const [fadeAway, setFadeAway] = useState(false);
   const videoRef = useRef(null);
+
+  const handleComplete = useCallback(() => {
+    setFadeAway(true);
+    setTimeout(() => {
+      if (onComplete) onComplete();
+    }, 600);
+  }, [onComplete]);
 
   useEffect(() => {
     // Safety fallback: transition after 4 seconds
@@ -11,14 +18,28 @@ export default function SplashScreen({ onComplete }) {
     }, 4000);
 
     return () => clearTimeout(timeout);
-  }, []);
+  }, [handleComplete]);
 
-  const handleComplete = () => {
-    setFadeAway(true);
-    setTimeout(() => {
-      if (onComplete) onComplete();
-    }, 600);
-  };
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video) return undefined;
+
+    // Mobile browsers require muted, inline playback to be set before play().
+    video.defaultMuted = true;
+    video.muted = true;
+    video.playsInline = true;
+    video.controls = false;
+
+    const startPlayback = () => {
+      const playback = video.play();
+      if (playback) playback.catch(() => {});
+    };
+
+    video.addEventListener('canplay', startPlayback);
+    startPlayback();
+
+    return () => video.removeEventListener('canplay', startPlayback);
+  }, []);
 
   return (
     <div
@@ -33,8 +54,11 @@ export default function SplashScreen({ onComplete }) {
         autoPlay
         muted
         playsInline
+        controls={false}
+        disablePictureInPicture
+        preload="auto"
         onEnded={handleComplete}
-        className="absolute inset-0 w-full h-full object-cover"
+        className="splash-video absolute inset-0 w-full h-full object-cover pointer-events-none"
       />
 
       {/* Skip button in top right */}

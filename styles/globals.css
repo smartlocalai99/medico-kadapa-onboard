@@ -48,6 +48,13 @@ input, textarea, select {
   -webkit-user-select: text !important;
 }
 
+/* Never show Safari's native play overlay on the autoplay splash video. */
+.splash-video::-webkit-media-controls,
+.splash-video::-webkit-media-controls-start-playback-button {
+  display: none !important;
+  -webkit-appearance: none;
+}
+
 /* Hide default browser scrollbars for layout container */
 ::-webkit-scrollbar {
   width: 6px;

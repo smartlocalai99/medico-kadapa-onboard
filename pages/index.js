@@ -110,7 +110,7 @@ export default function Home() {
         <img
           src="/logo.png"
           alt="Medico Kadapa Logo"
-          className="w-20 h-20  object-cover    animate-pulse"
+          className="w-24 h-24 object-contain animate-pulse"
         />
         <div className="flex items-center gap-2 text-slate-500">
           <Loader2 className="w-5 h-5 animate-spin text-emerald-600" />

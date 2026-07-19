@@ -19,7 +19,7 @@ export default function Layout({ children, activeTab, setActiveTab, selectedHosp
             <img
               src="/logo.png"
               alt="Medico Kadapa Onboard Logo"
-              className="w-14 h-14 object-cover"  
+              className="w-14 h-14 object-contain"
             />
             <div>
               <h1 className="text-lg font-black tracking-tight text-slate-900 leading-tight">

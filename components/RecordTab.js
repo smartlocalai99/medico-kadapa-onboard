@@ -261,7 +261,7 @@ export default function RecordTab({
             <img
               src="/logo.png"
               alt="Medico Kadapa Logo"
-              className="w-20 h-20 mb-4"
+              className="w-24 h-24 object-contain mb-4"
             />
             <h2 className="text-xl font-extrabold text-slate-900 tracking-tight">Medico Kadapa Onboard</h2>
             <p className="text-xs text-slate-500 mt-1 max-w-[240px] leading-normal">

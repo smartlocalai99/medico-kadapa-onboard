@@ -40,7 +40,7 @@ export default function Login() {
           <img
             src="/logo.png"
             alt="Medico Kadapa Logo"
-            className="w-16 h-16 rounded-2xl object-cover border border-slate-200 shadow-md mb-4 animate-pulse"
+            className="w-24 h-24 object-contain mb-4 animate-pulse"
           />
           <h1 className="text-2xl font-extrabold tracking-tight text-slate-900">
             Medico Kadapa Onboard
