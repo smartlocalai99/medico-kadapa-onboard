@@ -1,20 +1,25 @@
 import React, { useState, useRef } from 'react';
 import { supabase } from '../utils/supabaseClient';
+import { compressImage, extractStoragePath } from '../utils/imageCompression';
 import { Pill, Search, Plus, Loader2, X, AlertCircle, Camera, Trash2 } from 'lucide-react';
 import Swal from 'sweetalert2';
 
 const ITEMS_PER_PAGE = 15;
+const PHOTO_KINDS = [
+  { kind: 'box', label: 'Box' },
+  { kind: 'sheet', label: 'Sheet' },
+];
 
-export default function MedicinesTab({ 
-  medicines, 
-  setMedicines, 
-  submissions, 
-  setSubmissions, 
-  loadingData, 
-  refreshData 
+export default function MedicinesTab({
+  medicines,
+  setMedicines,
+  submissions,
+  setSubmissions,
+  loadingData,
+  refreshData
 }) {
   const [searchQuery, setSearchQuery] = useState('');
-  
+
   // Pagination State
   const [currentPage, setCurrentPage] = useState(1);
 
@@ -27,72 +32,13 @@ export default function MedicinesTab({
 
   // Upload/Camera State for creating or updating image from list
   const [uploadingMedId, setUploadingMedId] = useState(null);
+  const [uploadingKind, setUploadingKind] = useState(null);
   const fileInputRef = useRef(null);
 
   // Loading indicator states for delete actions
   const [deletingId, setDeletingId] = useState(null);
   const [clearingPhotoId, setClearingPhotoId] = useState(null);
   const [loading, setLoading] = useState(false);
-
-  const compressImage = (file) => {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.readAsDataURL(file);
-      reader.onload = (event) => {
-        const img = new Image();
-        img.src = event.target.result;
-        img.onload = () => {
-          const canvas = document.createElement('canvas');
-          const MAX_WIDTH_OR_HEIGHT = 1024;
-          let width = img.width;
-          let height = img.height;
-
-          if (width > height) {
-            if (width > MAX_WIDTH_OR_HEIGHT) {
-              height = Math.round(height * (MAX_WIDTH_OR_HEIGHT / width));
-              width = MAX_WIDTH_OR_HEIGHT;
-            }
-          } else {
-            if (height > MAX_WIDTH_OR_HEIGHT) {
-              width = Math.round(width * (MAX_WIDTH_OR_HEIGHT / height));
-              height = MAX_WIDTH_OR_HEIGHT;
-            }
-          }
-
-          canvas.width = width;
-          canvas.height = height;
-
-          const ctx = canvas.getContext('2d');
-          ctx.drawImage(img, 0, 0, width, height);
-
-          canvas.toBlob(
-            (blob) => {
-              if (blob) {
-                const compressedFile = new File(
-                  [blob],
-                  file.name.replace(/\.[^/.]+$/, '') + '_compressed.jpg',
-                  { type: 'image/jpeg', lastModified: Date.now() }
-                );
-                resolve(compressedFile);
-              } else {
-                reject(new Error('Canvas blob extraction failed'));
-              }
-            },
-            'image/jpeg',
-            0.70
-          );
-        };
-        img.onerror = (err) => reject(err);
-      };
-      reader.onerror = (err) => reject(err);
-    });
-  };
-
-  const extractStoragePath = (publicUrl) => {
-    if (!publicUrl) return null;
-    const match = publicUrl.match(/\/medicine-images\/(.+)$/);
-    return match ? match[1] : null;
-  };
 
   const handleCreateMedicine = async (e) => {
     e.preventDefault();
@@ -118,7 +64,7 @@ export default function MedicinesTab({
 
       // Update local state reactively
       setMedicines(prev => [data, ...prev].sort((a, b) => a.name.localeCompare(b.name)));
-      
+
       // Trigger background sync
       refreshData();
 
@@ -139,6 +85,27 @@ export default function MedicinesTab({
     } finally {
       setSaving(false);
     }
+  };
+
+  const gatherMedicinePhotoPaths = (med) => {
+    const pathsToDelete = [];
+    if (!med) return pathsToDelete;
+    for (const url of [med.box_image_url, med.sheet_image_url]) {
+      if (!url) continue;
+      const path = extractStoragePath(url);
+      if (path && !pathsToDelete.includes(path)) pathsToDelete.push(path);
+    }
+    if (med.tablet_submissions && med.tablet_submissions.length > 0) {
+      med.tablet_submissions.forEach(ts => {
+        if (ts.image_url) {
+          const path = extractStoragePath(ts.image_url);
+          if (path && !pathsToDelete.includes(path)) {
+            pathsToDelete.push(path);
+          }
+        }
+      });
+    }
+    return pathsToDelete;
   };
 
   const handleDeleteMedicine = async (medId, medName) => {
@@ -162,23 +129,7 @@ export default function MedicinesTab({
     try {
       // 1. Gather all file paths to delete from storage
       const med = medicines.find(m => m.id === medId);
-      const pathsToDelete = [];
-      if (med) {
-        if (med.image_url) {
-          const path = extractStoragePath(med.image_url);
-          if (path) pathsToDelete.push(path);
-        }
-        if (med.tablet_submissions && med.tablet_submissions.length > 0) {
-          med.tablet_submissions.forEach(ts => {
-            if (ts.image_url) {
-              const path = extractStoragePath(ts.image_url);
-              if (path && !pathsToDelete.includes(path)) {
-                pathsToDelete.push(path);
-              }
-            }
-          });
-        }
-      }
+      const pathsToDelete = gatherMedicinePhotoPaths(med);
 
       // 2. Delete entries in tablet_submissions first
       const { error: deleteSubsErr } = await supabase
@@ -227,7 +178,7 @@ export default function MedicinesTab({
       const isForeignKey = err.message?.includes('foreign key');
       Swal.fire({
         title: 'Cannot Delete Medicine',
-        text: isForeignKey 
+        text: isForeignKey
           ? `Cannot delete "${medName}" because it is currently prescribed to patients.`
           : `Failed to delete medicine: ${err.message}`,
         icon: 'error',
@@ -238,15 +189,15 @@ export default function MedicinesTab({
     }
   };
 
-  const handleDeletePhotoOnly = async (medId, medName) => {
+  const handleClearPhotos = async (medId, medName) => {
     const result = await Swal.fire({
-      title: 'Delete Photo?',
-      text: `Are you sure you want to delete only the tablet photo for "${medName}"?`,
+      title: 'Clear Photos?',
+      text: `Are you sure you want to remove both tablet photos (box and sheet) for "${medName}"?`,
       icon: 'warning',
       showCancelButton: true,
       confirmButtonColor: '#10b981',
       cancelButtonColor: '#f43f5e',
-      confirmButtonText: 'Yes, clear photo',
+      confirmButtonText: 'Yes, clear photos',
       cancelButtonText: 'Cancel',
       reverseButtons: true
     });
@@ -259,28 +210,12 @@ export default function MedicinesTab({
     try {
       // 1. Gather files to delete from storage
       const med = medicines.find(m => m.id === medId);
-      const pathsToDelete = [];
-      if (med) {
-        if (med.image_url) {
-          const path = extractStoragePath(med.image_url);
-          if (path) pathsToDelete.push(path);
-        }
-        if (med.tablet_submissions && med.tablet_submissions.length > 0) {
-          med.tablet_submissions.forEach(ts => {
-            if (ts.image_url) {
-              const path = extractStoragePath(ts.image_url);
-              if (path && !pathsToDelete.includes(path)) {
-                pathsToDelete.push(path);
-              }
-            }
-          });
-        }
-      }
+      const pathsToDelete = gatherMedicinePhotoPaths(med);
 
-      // 2. Clear medicines.image_url from DB
+      // 2. Clear medicines.box_image_url/sheet_image_url from DB
       const { error: updateErr } = await supabase
         .from('medicines')
-        .update({ image_url: null })
+        .update({ box_image_url: null, sheet_image_url: null })
         .eq('id', medId);
 
       if (updateErr) throw updateErr;
@@ -303,8 +238,8 @@ export default function MedicinesTab({
       }
 
       // Update local state reactively
-      setMedicines(prev => prev.map(m => 
-        m.id === medId ? { ...m, image_url: null, tablet_submissions: [] } : m
+      setMedicines(prev => prev.map(m =>
+        m.id === medId ? { ...m, box_image_url: null, sheet_image_url: null, tablet_submissions: [] } : m
       ));
       setSubmissions(prev => prev.filter(s => s.medicine_id !== medId));
 
@@ -312,8 +247,8 @@ export default function MedicinesTab({
       refreshData();
 
       Swal.fire({
-        title: 'Photo Cleared!',
-        text: `Tablet photo for "${medName}" has been removed.`,
+        title: 'Photos Cleared!',
+        text: `Tablet photos for "${medName}" have been removed.`,
         icon: 'success',
         confirmButtonColor: '#10b981'
       });
@@ -321,7 +256,7 @@ export default function MedicinesTab({
       console.error(err);
       Swal.fire({
         title: 'Error',
-        text: 'Failed to delete photo: ' + err.message,
+        text: 'Failed to clear photos: ' + err.message,
         icon: 'error',
         confirmButtonColor: '#10b981'
       });
@@ -330,8 +265,9 @@ export default function MedicinesTab({
     }
   };
 
-  const handleImageClick = (medId) => {
+  const handleImageClick = (medId, kind) => {
     setUploadingMedId(medId);
+    setUploadingKind(kind);
     setTimeout(() => {
       if (fileInputRef.current) {
         fileInputRef.current.click();
@@ -341,15 +277,15 @@ export default function MedicinesTab({
 
   const handleFileChange = async (e) => {
     const file = e.target.files?.[0];
-    if (file && uploadingMedId) {
+    if (file && uploadingMedId && uploadingKind) {
       setLoading(true);
       try {
         // Compress image client side
         const compressedFile = await compressImage(file);
 
         const fileExt = compressedFile.name.split('.').pop() || 'jpg';
-        const fileName = `tablets/catalog/${uploadingMedId}_${Date.now()}.${fileExt}`;
-        
+        const fileName = `tablets/catalog/${uploadingMedId}_${uploadingKind}_${Date.now()}.${fileExt}`;
+
         // 1. Upload to storage
         const { error: uploadError } = await supabase.storage
           .from('medicine-images')
@@ -363,16 +299,17 @@ export default function MedicinesTab({
           .getPublicUrl(fileName);
 
         // 3. Update DB
+        const column = uploadingKind === 'box' ? 'box_image_url' : 'sheet_image_url';
         const { error: updateError } = await supabase
           .from('medicines')
-          .update({ image_url: publicUrl })
+          .update({ [column]: publicUrl })
           .eq('id', uploadingMedId);
 
         if (updateError) throw updateError;
 
         // Update local state reactively
-        setMedicines(prev => prev.map(med => 
-          med.id === uploadingMedId ? { ...med, image_url: publicUrl } : med
+        setMedicines(prev => prev.map(med =>
+          med.id === uploadingMedId ? { ...med, [column]: publicUrl } : med
         ));
 
         // Sync background cache
@@ -396,6 +333,7 @@ export default function MedicinesTab({
       } finally {
         setLoading(false);
         setUploadingMedId(null);
+        setUploadingKind(null);
       }
     }
   };
@@ -405,7 +343,7 @@ export default function MedicinesTab({
     setCurrentPage(1);
   };
 
-  const filteredMedicines = medicines.filter(m => 
+  const filteredMedicines = medicines.filter(m =>
     m.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
     (m.category && m.category.toLowerCase().includes(searchQuery.toLowerCase()))
   );
@@ -416,12 +354,22 @@ export default function MedicinesTab({
   const currentMedicines = filteredMedicines.slice(startIndex, startIndex + ITEMS_PER_PAGE);
 
   const masterCount = medicines.length;
-  const countWithImages = medicines.filter(m => m.image_url).length;
+  const countWithImages = medicines.filter(m => m.box_image_url || m.sheet_image_url).length;
   const percentComplete = masterCount > 0 ? Math.round((countWithImages / masterCount) * 100) : 0;
 
   return (
     <div className="space-y-5 text-slate-800 animate-fade-in pb-16">
-      
+
+      {/* Hidden Camera Input, shared across cards - target set via uploadingMedId/uploadingKind */}
+      <input
+        type="file"
+        accept="image/*"
+        capture="environment"
+        ref={fileInputRef}
+        onChange={handleFileChange}
+        className="hidden"
+      />
+
       {/* Header & Add Button */}
       <div className="flex items-center justify-between">
         <div>
@@ -447,8 +395,8 @@ export default function MedicinesTab({
             <span className="text-emerald-600">{countWithImages} / {masterCount} ({percentComplete}%)</span>
           </div>
           <div className="w-full bg-slate-100 h-2.5 rounded-full overflow-hidden border border-slate-200/50">
-            <div 
-              className="bg-emerald-600 h-full rounded-full transition-all duration-500 shadow-xs" 
+            <div
+              className="bg-emerald-600 h-full rounded-full transition-all duration-500 shadow-xs"
               style={{ width: `${percentComplete}%` }}
             />
           </div>
@@ -474,32 +422,41 @@ export default function MedicinesTab({
                   .filter(Boolean)
               )
             );
+            const hasAnyPhoto = Boolean(med.box_image_url || med.sheet_image_url);
 
             return (
-              <div 
-                key={med.id} 
+              <div
+                key={med.id}
                 className="bg-white border border-slate-200 rounded-3xl overflow-hidden shadow-xs hover:border-slate-350 hover:shadow-md transition duration-300 flex flex-col justify-between"
               >
-                {/* 1. Image Header */}
-                <div className="relative aspect-square w-full bg-slate-50 border-b border-slate-100 flex items-center justify-center overflow-hidden shrink-0">
-                  {med.image_url ? (
-                    <img 
-                      src={med.image_url} 
-                      alt={med.name} 
-                      className="w-full h-full object-cover"
-                    />
-                  ) : (
-                    <button 
-                      onClick={() => handleImageClick(med.id)}
-                      className="w-full h-full flex flex-col items-center justify-center gap-2 text-slate-400 hover:text-emerald-600 transition cursor-pointer bg-slate-50/50 border-none"
-                      title="Upload tablet photo"
-                    >
-                      <Camera className="w-6 h-6" />
-                      <span className="text-[10px] font-bold uppercase tracking-wider">No Photo</span>
-                    </button>
-                  )}
+                {/* 1. Box + Sheet Image Header */}
+                <div className="relative aspect-square w-full bg-slate-50 border-b border-slate-100 flex overflow-hidden shrink-0">
+                  {PHOTO_KINDS.map(({ kind, label }) => {
+                    const url = kind === 'box' ? med.box_image_url : med.sheet_image_url;
+                    return (
+                      <button
+                        key={kind}
+                        onClick={() => handleImageClick(med.id, kind)}
+                        className={`relative w-1/2 h-full flex items-center justify-center overflow-hidden border-none cursor-pointer bg-slate-50/50 ${
+                          kind === 'box' ? 'border-r border-slate-100' : ''
+                        }`}
+                        title={url ? `Replace ${label} photo` : `Upload ${label} photo`}
+                      >
+                        {url ? (
+                          <img src={url} alt={`${med.name} ${label}`} className="w-full h-full object-cover" />
+                        ) : (
+                          <div className="w-full h-full flex flex-col items-center justify-center gap-1.5 text-slate-400 hover:text-emerald-600 transition">
+                            <Camera className="w-5 h-5" />
+                          </div>
+                        )}
+                        <span className="absolute bottom-1.5 left-1.5 bg-white/90 border border-slate-200 px-1.5 py-0.5 rounded text-[7px] font-black uppercase tracking-widest text-slate-500">
+                          {label}
+                        </span>
+                      </button>
+                    );
+                  })}
                 </div>
-                
+
                 {/* 2. Card Content Body */}
                 <div className="p-3.5 flex-1 flex flex-col justify-between space-y-2">
                   <div className="space-y-1">
@@ -523,19 +480,7 @@ export default function MedicinesTab({
 
                 {/* 3. Card Footer Action Panel */}
                 <div className="p-3 pt-0 flex flex-col gap-1.5 shrink-0">
-                  <div className="flex gap-1.5">
-                    <button
-                      onClick={() => handleImageClick(med.id)}
-                      className={`flex-1 text-[9px] font-extrabold uppercase tracking-wider py-2 rounded-xl transition border flex items-center justify-center gap-1 cursor-pointer active:scale-95 ${
-                        med.image_url
-                          ? 'border-slate-200 text-slate-500 hover:bg-slate-50 bg-white'
-                          : 'border-emerald-500/20 text-emerald-700 bg-emerald-50 hover:bg-emerald-100/60'
-                      }`}
-                    >
-                      <Camera className="w-3 h-3" />
-                      {med.image_url ? 'Replace' : 'Capture'}
-                    </button>
-
+                  <div className="flex justify-end">
                     <button
                       onClick={() => handleDeleteMedicine(med.id, med.name)}
                       disabled={deletingId === med.id}
@@ -550,16 +495,16 @@ export default function MedicinesTab({
                     </button>
                   </div>
 
-                  {med.image_url && (
+                  {hasAnyPhoto && (
                     <button
-                      onClick={() => handleDeletePhotoOnly(med.id, med.name)}
+                      onClick={() => handleClearPhotos(med.id, med.name)}
                       disabled={clearingPhotoId === med.id}
                       className="w-full text-[9px] font-extrabold uppercase tracking-wider py-1.5 rounded-xl border border-rose-100 text-rose-500 hover:bg-rose-50 cursor-pointer active:scale-95 disabled:opacity-40"
                     >
                       {clearingPhotoId === med.id ? (
                         <Loader2 className="w-3 h-3 animate-spin mx-auto" />
                       ) : (
-                        'Clear Photo Only'
+                        'Clear Photos'
                       )}
                     </button>
                   )}
@@ -582,7 +527,7 @@ export default function MedicinesTab({
           >
             Previous
           </button>
-          
+
           <span className="text-xs text-slate-500 font-bold">
             Page {currentPage} of {totalPages} <span className="text-slate-400 font-medium">({totalCount} items)</span>
           </span>
@@ -602,8 +547,8 @@ export default function MedicinesTab({
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
           <div className="w-full max-w-md bg-white border border-slate-200 rounded-3xl p-6 shadow-2xl space-y-4 relative animate-scale-up">
-            
-            <button 
+
+            <button
               onClick={() => setIsModalOpen(false)}
               className="absolute top-4 right-4 text-slate-400 hover:text-slate-700 border border-slate-100 p-1.5 rounded-xl hover:bg-slate-100 transition"
             >

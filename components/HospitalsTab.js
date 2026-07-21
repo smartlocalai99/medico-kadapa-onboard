@@ -1,14 +1,15 @@
 import React, { useState, useRef } from 'react';
 import { supabase } from '../utils/supabaseClient';
+import { compressImage, extractStoragePath } from '../utils/imageCompression';
 import { Building2, ArrowLeft, Trash2, Camera, Loader2, AlertCircle, Search, ChevronRight } from 'lucide-react';
 import Swal from 'sweetalert2';
 
-export default function HospitalsTab({ 
-  hospitals, 
-  setHospitals, 
-  submissions, 
-  setSubmissions, 
-  loadingData, 
+export default function HospitalsTab({
+  hospitals,
+  setHospitals,
+  submissions,
+  setSubmissions,
+  loadingData,
   refreshData,
   setMedicines
 }) {
@@ -30,65 +31,7 @@ export default function HospitalsTab({
     return submissions.filter(s => s.hospital_id === hospitalId);
   };
 
-  const compressImage = (file) => {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.readAsDataURL(file);
-      reader.onload = (event) => {
-        const img = new Image();
-        img.src = event.target.result;
-        img.onload = () => {
-          const canvas = document.createElement('canvas');
-          const MAX_WIDTH_OR_HEIGHT = 1024;
-          let width = img.width;
-          let height = img.height;
-
-          if (width > height) {
-            if (width > MAX_WIDTH_OR_HEIGHT) {
-              height = Math.round(height * (MAX_WIDTH_OR_HEIGHT / width));
-              width = MAX_WIDTH_OR_HEIGHT;
-            }
-          } else {
-            if (height > MAX_WIDTH_OR_HEIGHT) {
-              width = Math.round(width * (MAX_WIDTH_OR_HEIGHT / height));
-              height = MAX_WIDTH_OR_HEIGHT;
-            }
-          }
-
-          canvas.width = width;
-          canvas.height = height;
-
-          const ctx = canvas.getContext('2d');
-          ctx.drawImage(img, 0, 0, width, height);
-
-          canvas.toBlob(
-            (blob) => {
-              if (blob) {
-                const compressedFile = new File(
-                  [blob],
-                  file.name.replace(/\.[^/.]+$/, '') + '_compressed.jpg',
-                  { type: 'image/jpeg', lastModified: Date.now() }
-                );
-                resolve(compressedFile);
-              } else {
-                reject(new Error('Canvas blob extraction failed'));
-              }
-            },
-            'image/jpeg',
-            0.70
-          );
-        };
-        img.onerror = (err) => reject(err);
-      };
-      reader.onerror = (err) => reject(err);
-    });
-  };
-
-  const extractStoragePath = (publicUrl) => {
-    if (!publicUrl) return null;
-    const match = publicUrl.match(/\/medicine-images\/(.+)$/);
-    return match ? match[1] : null;
-  };
+  const imageColumnFor = (kind) => (kind === 'box' ? 'box_image_url' : 'sheet_image_url');
 
   const handleDeleteHospital = async (hospId, hospName) => {
     const result = await Swal.fire({
@@ -96,8 +39,8 @@ export default function HospitalsTab({
       text: `You are about to delete "${hospName}". This will permanently delete this hospital and all its associated tablet photo records.`,
       icon: 'warning',
       showCancelButton: true,
-      confirmButtonColor: '#10b981', 
-      cancelButtonColor: '#f43f5e', 
+      confirmButtonColor: '#10b981',
+      cancelButtonColor: '#f43f5e',
       confirmButtonText: 'Yes, delete it',
       cancelButtonText: 'Cancel',
       reverseButtons: true
@@ -168,9 +111,10 @@ export default function HospitalsTab({
   };
 
   const handleDeletePhoto = async (sub, medicineName) => {
+    const kindLabel = sub.kind === 'box' ? 'box' : 'sheet';
     const result = await Swal.fire({
       title: 'Delete Tablet Photo?',
-      text: `Are you sure you want to delete the tablet photo for "${medicineName}" at this hospital?`,
+      text: `Are you sure you want to delete the ${kindLabel} photo for "${medicineName}" at this hospital?`,
       icon: 'warning',
       showCancelButton: true,
       confirmButtonColor: '#10b981',
@@ -200,24 +144,25 @@ export default function HospitalsTab({
 
       if (deleteErr) throw deleteErr;
 
-      // 3. Set medicines.image_url to null
+      // 3. Clear the column matching this submission's kind
+      const column = imageColumnFor(sub.kind);
       const { error: updateErr } = await supabase
         .from('medicines')
-        .update({ image_url: null })
+        .update({ [column]: null })
         .eq('id', sub.medicine_id);
 
       if (updateErr) throw updateErr;
 
       // 4. Update local state
       setSubmissions(prev => prev.filter(s => s.id !== sub.id));
-      setMedicines(prev => prev.map(m => m.id === sub.medicine_id ? { ...m, image_url: null } : m));
+      setMedicines(prev => prev.map(m => m.id === sub.medicine_id ? { ...m, [column]: null } : m));
 
       // Sync background cache
       refreshData();
 
       Swal.fire({
         title: 'Photo Deleted!',
-        text: `Tablet photo for "${medicineName}" has been deleted.`,
+        text: `${kindLabel === 'box' ? 'Box' : 'Sheet'} photo for "${medicineName}" has been deleted.`,
         icon: 'success',
         confirmButtonColor: '#10b981'
       });
@@ -252,8 +197,8 @@ export default function HospitalsTab({
         const compressedFile = await compressImage(file);
 
         const fileExt = compressedFile.name.split('.').pop() || 'jpg';
-        const fileName = `tablets/${uploadingSubmission.hospital_id}/${uploadingSubmission.medicine_id}_${Date.now()}.${fileExt}`;
-        
+        const fileName = `tablets/${uploadingSubmission.hospital_id}/${uploadingSubmission.medicine_id}_${uploadingSubmission.kind}_${Date.now()}.${fileExt}`;
+
         // 1. Upload to storage
         const { error: uploadError } = await supabase.storage
           .from('medicine-images')
@@ -266,10 +211,11 @@ export default function HospitalsTab({
           .from('medicine-images')
           .getPublicUrl(fileName);
 
-        // 3. Update medicines image_url in DB
+        // 3. Update the medicines column matching this submission's kind
+        const column = imageColumnFor(uploadingSubmission.kind);
         const { error: updateMedErr } = await supabase
           .from('medicines')
-          .update({ image_url: publicUrl })
+          .update({ [column]: publicUrl })
           .eq('id', uploadingSubmission.medicine_id);
 
         if (updateMedErr) throw updateMedErr;
@@ -283,11 +229,11 @@ export default function HospitalsTab({
         if (updateSubErr) throw updateSubErr;
 
         // 5. Update local state reactively
-        setSubmissions(prev => prev.map(s => 
+        setSubmissions(prev => prev.map(s =>
           s.id === uploadingSubmission.id ? { ...s, image_url: publicUrl } : s
         ));
-        setMedicines(prev => prev.map(m => 
-          m.id === uploadingSubmission.medicine_id ? { ...m, image_url: publicUrl } : m
+        setMedicines(prev => prev.map(m =>
+          m.id === uploadingSubmission.medicine_id ? { ...m, [column]: publicUrl } : m
         ));
 
         // Sync background cache
@@ -317,7 +263,7 @@ export default function HospitalsTab({
 
   // Render detail view list of tablets for selected hospital
   const hospitalSubmissions = activeHospital ? getSubmissionsForHospital(activeHospital.id) : [];
-  const filteredSubmissions = hospitalSubmissions.filter(s => 
+  const filteredSubmissions = hospitalSubmissions.filter(s =>
     s.medicines?.name?.toLowerCase().includes(detailSearchQuery.toLowerCase()) ||
     s.medicines?.category?.toLowerCase().includes(detailSearchQuery.toLowerCase())
   );
@@ -327,7 +273,7 @@ export default function HospitalsTab({
       <div className="space-y-5 text-slate-800 pb-16">
         {/* Header with Back Button */}
         <div className="flex items-center gap-3">
-          <button 
+          <button
             onClick={() => {
               setActiveHospital(null);
               setDetailSearchQuery('');
@@ -388,15 +334,15 @@ export default function HospitalsTab({
         ) : (
           <div className="space-y-3">
             {filteredSubmissions.map((sub) => (
-              <div 
+              <div
                 key={sub.id}
                 className="bg-white border border-slate-200 p-4 rounded-2xl flex items-center justify-between gap-4 shadow-xs hover:border-slate-300 transition"
               >
                 <div className="flex items-center gap-3 min-w-0 flex-1">
                   <div className="relative w-12 h-12 rounded-xl overflow-hidden shrink-0 border border-slate-200 bg-slate-50">
-                    <img 
-                      src={sub.image_url} 
-                      alt={sub.medicines?.name} 
+                    <img
+                      src={sub.image_url}
+                      alt={sub.medicines?.name}
                       className="w-full h-full object-cover"
                     />
                   </div>
@@ -404,9 +350,14 @@ export default function HospitalsTab({
                     <h3 className="font-bold text-slate-800 text-sm truncate leading-snug">
                       {sub.medicines?.name || 'Unknown Tablet'}
                     </h3>
-                    <span className="text-[10px] bg-slate-100 text-slate-500 px-2 py-0.5 rounded font-mono uppercase tracking-wider inline-block mt-1">
-                      {sub.medicines?.category || 'General'}
-                    </span>
+                    <div className="flex items-center gap-1.5 mt-1">
+                      <span className="text-[10px] bg-slate-100 text-slate-500 px-2 py-0.5 rounded font-mono uppercase tracking-wider inline-block">
+                        {sub.medicines?.category || 'General'}
+                      </span>
+                      <span className="text-[10px] bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded font-mono uppercase tracking-wider inline-block">
+                        {sub.kind === 'box' ? 'Box' : 'Sheet'}
+                      </span>
+                    </div>
                   </div>
                 </div>
 
@@ -501,9 +452,9 @@ export default function HospitalsTab({
                       <Trash2 className="w-3.5 h-3.5" />
                     )}
                   </button>
-                  <ChevronRight 
+                  <ChevronRight
                     onClick={() => setActiveHospital(hosp)}
-                    className="w-5 h-5 text-slate-350 group-hover:text-slate-500 group-hover:translate-x-0.5 transition-all cursor-pointer" 
+                    className="w-5 h-5 text-slate-350 group-hover:text-slate-500 group-hover:translate-x-0.5 transition-all cursor-pointer"
                   />
                 </div>
               </div>
