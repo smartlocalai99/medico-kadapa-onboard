@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from '../utils/supabaseClient';
-import { Camera, Check, RotateCcw, Building2, Pill, Loader2, AlertCircle, Sparkles, Search } from 'lucide-react';
+import { Camera, Check, RotateCcw, Building2, Pill, Loader2, AlertCircle, Sparkles, Search, Plus } from 'lucide-react';
 
 export default function RecordTab({
   staffProfile,
@@ -27,6 +27,7 @@ export default function RecordTab({
 
   // Loading/Error states
   const [compressing, setCompressing] = useState(false);
+  const [addingMedicine, setAddingMedicine] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [submitSuccess, setSubmitSuccess] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
@@ -58,6 +59,35 @@ export default function RecordTab({
     setImageFile(null);
     setImagePreview(null);
     setCompressedSize(null);
+  };
+
+  const handleAddNewMedicine = async () => {
+    const name = medicineQuery.trim();
+    if (!name) return;
+
+    setAddingMedicine(true);
+    setErrorMessage('');
+
+    try {
+      const { data, error } = await supabase
+        .from('medicines')
+        .insert({ name })
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      setMedicines(prev => [...prev, data].sort((a, b) => a.name.localeCompare(b.name)));
+      handleMedicineSelect(data);
+
+      // Trigger background sync
+      refreshData();
+    } catch (err) {
+      console.error('Error adding medicine:', err);
+      setErrorMessage(err.message || 'Failed to add new medicine.');
+    } finally {
+      setAddingMedicine(false);
+    }
   };
 
   const handleCameraTrigger = () => {
@@ -420,8 +450,29 @@ export default function RecordTab({
                       </button>
                     ))}
 
-                    {filteredMedicines.length === 0 && (
-                      <div className="p-4 text-center text-slate-400 text-sm">No medicines found matching "{medicineQuery}"</div>
+                    {filteredMedicines.length === 0 && medicineQuery.trim() && (
+                      <div className="p-4 text-center space-y-3">
+                        <p className="text-slate-400 text-sm">No medicines found matching &quot;{medicineQuery}&quot;</p>
+                        <button
+                          type="button"
+                          onClick={handleAddNewMedicine}
+                          disabled={addingMedicine}
+                          className="w-full bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white font-bold py-2.5 rounded-xl transition text-xs flex items-center justify-center gap-1.5 cursor-pointer active:scale-98"
+                        >
+                          {addingMedicine ? (
+                            <>
+                              <Loader2 className="w-3.5 h-3.5 animate-spin" /> Adding...
+                            </>
+                          ) : (
+                            <>
+                              <Plus className="w-3.5 h-3.5" /> Add &quot;{medicineQuery.trim()}&quot; as new medicine
+                            </>
+                          )}
+                        </button>
+                      </div>
+                    )}
+                    {filteredMedicines.length === 0 && !medicineQuery.trim() && (
+                      <div className="p-4 text-center text-slate-400 text-sm">No medicines found.</div>
                     )}
                   </>
                 )}
