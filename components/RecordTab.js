@@ -71,7 +71,12 @@ export default function RecordTab({
     try {
       const { data, error } = await supabase
         .from('medicines')
-        .insert({ name })
+        .insert({
+          name,
+          hospital_id: selectedHospital.id,
+          hospital_name: selectedHospital.name,
+          code: `AUTO${Date.now()}`,
+        })
         .select()
         .single();
 
