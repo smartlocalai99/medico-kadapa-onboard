@@ -67,7 +67,6 @@ export default function Home() {
           hospital_id,
           medicine_id,
           image_url,
-          kind,
           created_at,
           medicines (
             name,

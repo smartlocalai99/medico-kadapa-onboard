@@ -1,12 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from '../utils/supabaseClient';
-import { compressImage } from '../utils/imageCompression';
 import { Camera, Check, RotateCcw, Building2, Pill, Loader2, AlertCircle, Sparkles, Search } from 'lucide-react';
-
-const PHOTO_KINDS = [
-  { kind: 'box', label: 'Box' },
-  { kind: 'sheet', label: 'Sheet' },
-];
 
 export default function RecordTab({
   staffProfile,
@@ -22,8 +16,9 @@ export default function RecordTab({
 }) {
   // Selections
   const [selectedMedicine, setSelectedMedicine] = useState(null);
-  // photos: { box: { file, preview, sizeKb } | null, sheet: { ... } | null }
-  const [photos, setPhotos] = useState({ box: null, sheet: null });
+  const [imageFile, setImageFile] = useState(null);
+  const [imagePreview, setImagePreview] = useState(null);
+  const [compressedSize, setCompressedSize] = useState(null);
 
   // Dropdown States
   const [showHospDropdown, setShowHospDropdown] = useState(false);
@@ -31,13 +26,13 @@ export default function RecordTab({
   const [showMedicineDropdown, setShowMedicineDropdown] = useState(false);
 
   // Loading/Error states
-  const [compressingKind, setCompressingKind] = useState(null);
+  const [compressing, setCompressing] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [submitSuccess, setSubmitSuccess] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
 
   // Refs
-  const fileInputRefs = { box: useRef(null), sheet: useRef(null) };
+  const fileInputRef = useRef(null);
   const medicineInputRef = useRef(null);
   const hospDropdownRef = useRef(null);
 
@@ -60,40 +55,102 @@ export default function RecordTab({
     setMedicineQuery('');
     setErrorMessage('');
     // Clear any previous previews
-    setPhotos({ box: null, sheet: null });
+    setImageFile(null);
+    setImagePreview(null);
+    setCompressedSize(null);
   };
 
-  const handleCameraTrigger = (kind) => {
-    fileInputRefs[kind].current?.click();
-  };
-
-  const handleFileChange = async (kind, e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    setErrorMessage('');
-    setCompressingKind(kind);
-
-    try {
-      const compressed = await compressImage(file);
-      const sizeKb = Math.round(compressed.size / 1024);
-      const preview = URL.createObjectURL(compressed);
-      setPhotos((prev) => ({ ...prev, [kind]: { file: compressed, preview, sizeKb } }));
-    } catch (err) {
-      console.error('Compression error:', err);
-      setErrorMessage('Failed to compress image. Reverting to original.');
-      setPhotos((prev) => ({
-        ...prev,
-        [kind]: { file, preview: URL.createObjectURL(file), sizeKb: Math.round(file.size / 1024) },
-      }));
-    } finally {
-      setCompressingKind(null);
+  const handleCameraTrigger = () => {
+    if (fileInputRef.current) {
+      fileInputRef.current.click();
     }
   };
 
+  const handleFileChange = async (e) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setErrorMessage('');
+      setCompressing(true);
+
+      try {
+        const compressed = await compressImage(file);
+        setImageFile(compressed);
+
+        const sizeInKb = Math.round(compressed.size / 1024);
+        setCompressedSize(sizeInKb);
+
+        const previewUrl = URL.createObjectURL(compressed);
+        setImagePreview(previewUrl);
+      } catch (err) {
+        console.error('Compression error:', err);
+        setErrorMessage('Failed to compress image. Reverting to original.');
+        setImageFile(file);
+        setCompressedSize(Math.round(file.size / 1024));
+        setImagePreview(URL.createObjectURL(file));
+      } finally {
+        setCompressing(false);
+      }
+    }
+  };
+
+  const compressImage = (file) => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = (event) => {
+        const img = new Image();
+        img.src = event.target.result;
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+
+          const MAX_WIDTH_OR_HEIGHT = 1024;
+          let width = img.width;
+          let height = img.height;
+
+          if (width > height) {
+            if (width > MAX_WIDTH_OR_HEIGHT) {
+              height = Math.round(height * (MAX_WIDTH_OR_HEIGHT / width));
+              width = MAX_WIDTH_OR_HEIGHT;
+            }
+          } else {
+            if (height > MAX_WIDTH_OR_HEIGHT) {
+              width = Math.round(width * (MAX_WIDTH_OR_HEIGHT / height));
+              height = MAX_WIDTH_OR_HEIGHT;
+            }
+          }
+
+          canvas.width = width;
+          canvas.height = height;
+
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, width, height);
+
+          canvas.toBlob(
+            (blob) => {
+              if (blob) {
+                const compressedFile = new File(
+                  [blob],
+                  file.name.replace(/\.[^/.]+$/, '') + '_compressed.jpg',
+                  { type: 'image/jpeg', lastModified: Date.now() }
+                );
+                resolve(compressedFile);
+              } else {
+                reject(new Error('Canvas blob extraction failed'));
+              }
+            },
+            'image/jpeg',
+            0.70
+          );
+        };
+        img.onerror = (err) => reject(err);
+      };
+      reader.onerror = (err) => reject(err);
+    });
+  };
+
   const handleSubmit = async () => {
-    if (!selectedHospital || !selectedMedicine || (!photos.box && !photos.sheet)) {
-      setErrorMessage('Please ensure hospital, drug, and at least one tablet photo are provided.');
+    if (!selectedHospital || !selectedMedicine || !imageFile) {
+      setErrorMessage('Please ensure hospital, drug, and tablet image are all provided.');
       return;
     }
 
@@ -101,52 +158,58 @@ export default function RecordTab({
     setErrorMessage('');
 
     try {
-      const medicineUpdates = {};
+      const fileExt = imageFile.name.split('.').pop() || 'jpg';
+      const fileName = `tablets/${selectedHospital.id}/${selectedMedicine.id}_${Date.now()}.${fileExt}`;
 
-      for (const { kind } of PHOTO_KINDS) {
-        const photo = photos[kind];
-        if (!photo) continue;
+      const { error: uploadError } = await supabase.storage
+        .from('medicine-images')
+        .upload(fileName, imageFile, {
+          cacheControl: '3600',
+          upsert: true
+        });
 
-        const fileExt = photo.file.name.split('.').pop() || 'jpg';
-        const fileName = `tablets/${selectedHospital.id}/${selectedMedicine.id}_${kind}_${Date.now()}.${fileExt}`;
+      if (uploadError) throw uploadError;
 
-        const { error: uploadError } = await supabase.storage
-          .from('medicine-images')
-          .upload(fileName, photo.file, { cacheControl: '3600', upsert: true });
-
-        if (uploadError) throw uploadError;
-
-        const { data: { publicUrl } } = supabase.storage
-          .from('medicine-images')
-          .getPublicUrl(fileName);
-
-        medicineUpdates[kind === 'box' ? 'box_image_url' : 'sheet_image_url'] = publicUrl;
-
-        try {
-          await supabase
-            .from('tablet_submissions')
-            .insert({
-              hospital_id: selectedHospital.id,
-              medicine_id: selectedMedicine.id,
-              image_url: publicUrl,
-              kind,
-            });
-        } catch (logErr) {
-          console.warn('Logging to tablet_submissions failed:', logErr);
-        }
-      }
+      const { data: { publicUrl } } = supabase.storage
+        .from('medicine-images')
+        .getPublicUrl(fileName);
 
       const { error: updateError } = await supabase
         .from('medicines')
-        .update(medicineUpdates)
+        .update({ image_url: publicUrl })
         .eq('id', selectedMedicine.id);
 
       if (updateError) throw updateError;
 
       // Update local state reactive arrays instantly
       setMedicines(prev => prev.map(m =>
-        m.id === selectedMedicine.id ? { ...m, ...medicineUpdates } : m
+        m.id === selectedMedicine.id ? { ...m, image_url: publicUrl } : m
       ));
+
+      const newSub = {
+        id: 'temp-' + Date.now(),
+        hospital_id: selectedHospital.id,
+        medicine_id: selectedMedicine.id,
+        image_url: publicUrl,
+        created_at: new Date().toISOString(),
+        medicines: {
+          name: selectedMedicine.name,
+          category: selectedMedicine.category
+        }
+      };
+      setSubmissions(prev => [newSub, ...prev]);
+
+      try {
+        await supabase
+          .from('tablet_submissions')
+          .insert({
+            hospital_id: selectedHospital.id,
+            medicine_id: selectedMedicine.id,
+            image_url: publicUrl,
+          });
+      } catch (logErr) {
+        console.warn('Logging to tablet_submissions failed:', logErr);
+      }
 
       const userId = staffProfile?.id || 'anon';
       const localUploaded = localStorage.getItem(`uploads_today_${userId}`) || '0';
@@ -171,7 +234,9 @@ export default function RecordTab({
 
   const handleResetForNext = () => {
     setSelectedMedicine(null);
-    setPhotos({ box: null, sheet: null });
+    setImageFile(null);
+    setImagePreview(null);
+    setCompressedSize(null);
     setSubmitSuccess(false);
     setErrorMessage('');
     setMedicineQuery('');
@@ -345,9 +410,9 @@ export default function RecordTab({
                           <span className="font-bold text-slate-800 text-sm block">{med.name}</span>
                           <span className="text-[10px] bg-slate-100 text-slate-500 px-2 py-0.5 rounded font-mono uppercase tracking-wider mt-1 inline-block">{med.category || 'General'}</span>
                         </div>
-                        {(med.sheet_image_url || med.box_image_url) && (
+                        {med.image_url && (
                           <img
-                            src={med.sheet_image_url || med.box_image_url}
+                            src={med.image_url}
                             alt={med.name}
                             className="w-8 h-8 rounded-lg object-cover border border-slate-200 shrink-0"
                           />
@@ -366,13 +431,22 @@ export default function RecordTab({
         )}
       </div>
 
-      {/* STEP 2: Box + sheet photo capture */}
+      {/* STEP 2: Existing photo display or Camera Capture flow */}
       {selectedMedicine && (
         <div className="bg-slate-50 border border-slate-200 rounded-3xl p-5 space-y-4 shadow-xs">
           <label className="block text-xs font-bold text-slate-500 uppercase tracking-widest flex items-center gap-2">
             <span className="bg-slate-200 text-slate-700 w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-black">2</span>
-            Take Tablet Photos
+            {selectedMedicine.image_url && !imagePreview ? 'Existing Photo' : 'Take Tablet Photo'}
           </label>
+
+          <input
+            type="file"
+            accept="image/*"
+            capture="environment"
+            ref={fileInputRef}
+            onChange={handleFileChange}
+            className="hidden"
+          />
 
           {submitSuccess ? (
             <div className="border border-emerald-200 bg-emerald-50/50 rounded-2xl p-8 flex flex-col items-center justify-center text-center space-y-3 shadow-xs animate-scale-up">
@@ -382,100 +456,93 @@ export default function RecordTab({
               <h3 className="text-lg font-bold text-slate-850">Photo Saved Successfully!</h3>
               <p className="text-sm text-slate-500">The tablet photo has been successfully saved to the medicine catalog.</p>
             </div>
-          ) : (
-            <>
-              <div className="grid grid-cols-2 gap-3">
-                {PHOTO_KINDS.map(({ kind, label }) => {
-                  const photo = photos[kind];
-                  const existingUrl = kind === 'box' ? selectedMedicine.box_image_url : selectedMedicine.sheet_image_url;
-                  const compressing = compressingKind === kind;
+          ) : compressing ? (
+            <div className="border border-slate-200 bg-white rounded-2xl p-8 flex flex-col items-center justify-center text-center space-y-3 py-12 shadow-xs animate-pulse">
+              <Loader2 className="w-8 h-8 animate-spin text-emerald-600" />
+              <h3 className="text-sm font-bold text-slate-800">Optimizing Image...</h3>
+              <p className="text-xs text-slate-500">Optimizing image file size for fast uploading...</p>
+            </div>
+          ) : imagePreview ? (
+            /* User captured a new photo, show it with Retake & Submit */
+            <div className="space-y-4">
+              <div className="relative aspect-video w-full overflow-hidden rounded-2xl border border-slate-200 bg-slate-900 flex items-center justify-center">
+                <img
+                  src={imagePreview}
+                  alt="New tablet preview"
+                  className="w-full h-full object-contain"
+                />
 
-                  return (
-                    <div key={kind} className="space-y-2">
-                      <span className="block text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">{label}</span>
-
-                      <input
-                        type="file"
-                        accept="image/*"
-                        capture="environment"
-                        ref={fileInputRefs[kind]}
-                        onChange={(e) => handleFileChange(kind, e)}
-                        className="hidden"
-                      />
-
-                      {compressing ? (
-                        <div className="border border-slate-200 bg-white rounded-2xl aspect-square flex flex-col items-center justify-center text-center space-y-2 shadow-xs animate-pulse">
-                          <Loader2 className="w-6 h-6 animate-spin text-emerald-600" />
-                          <p className="text-[10px] text-slate-500 px-2">Optimizing…</p>
-                        </div>
-                      ) : photo ? (
-                        <div className="space-y-2">
-                          <div className="relative aspect-square w-full overflow-hidden rounded-2xl border border-slate-200 bg-slate-900 flex items-center justify-center">
-                            <img src={photo.preview} alt={`New ${label} preview`} className="w-full h-full object-contain" />
-                            <span className="absolute bottom-2 right-2 bg-white/90 border border-slate-200 px-2 py-0.5 rounded-lg text-[9px] font-bold text-emerald-600 tracking-wider shadow-xs">
-                              {photo.sizeKb} KB
-                            </span>
-                          </div>
-                          <button
-                            type="button"
-                            onClick={() => handleCameraTrigger(kind)}
-                            disabled={submitting}
-                            className="w-full border border-slate-200 text-slate-700 font-bold py-2 rounded-xl hover:bg-slate-100 transition flex items-center justify-center gap-1.5 active:scale-98 bg-white shadow-xs text-[11px] cursor-pointer"
-                          >
-                            <RotateCcw className="w-3.5 h-3.5 text-slate-500" />
-                            Retake
-                          </button>
-                        </div>
-                      ) : existingUrl ? (
-                        <div className="space-y-2">
-                          <div className="relative aspect-square w-full overflow-hidden rounded-2xl border border-slate-200 bg-slate-900 flex items-center justify-center">
-                            <img src={existingUrl} alt={`Existing ${label}`} className="w-full h-full object-contain" />
-                            <span className="absolute top-2 left-2 bg-emerald-600 text-white px-2 py-0.5 rounded-lg text-[9px] font-bold tracking-wider shadow-xs uppercase">
-                              Current
-                            </span>
-                          </div>
-                          <button
-                            type="button"
-                            onClick={() => handleCameraTrigger(kind)}
-                            className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2 rounded-xl transition flex items-center justify-center gap-1.5 shadow-md shadow-emerald-500/15 active:scale-98 text-[11px] cursor-pointer"
-                          >
-                            <Camera className="w-3.5 h-3.5 shrink-0" />
-                            Replace
-                          </button>
-                        </div>
-                      ) : (
-                        <button
-                          type="button"
-                          onClick={() => handleCameraTrigger(kind)}
-                          className="w-full aspect-square border-2 border-dashed border-slate-200 hover:border-emerald-500/50 bg-white rounded-2xl flex flex-col items-center justify-center gap-2 text-slate-400 hover:text-slate-600 transition-all duration-300 group shadow-xs"
-                        >
-                          <div className="bg-slate-100 border border-slate-200 p-3 rounded-full group-hover:bg-emerald-50 group-hover:border-emerald-100 group-hover:text-emerald-600 transition-all">
-                            <Camera className="w-5 h-5" />
-                          </div>
-                          <span className="text-[10px] text-slate-500 font-bold text-center px-2">Tap for camera</span>
-                        </button>
-                      )}
-                    </div>
-                  );
-                })}
+                {compressedSize && (
+                  <span className="absolute bottom-3 right-3 bg-white/90 border border-slate-200 px-2.5 py-1 rounded-lg text-[10px] font-bold text-emerald-600 tracking-wider shadow-xs">
+                    Size: {compressedSize} KB
+                  </span>
+                )}
               </div>
 
+              <div className="flex gap-3">
+                <button
+                  type="button"
+                  onClick={handleCameraTrigger}
+                  disabled={submitting}
+                  className="flex-1 border border-slate-200 text-slate-700 font-bold py-3.5 rounded-xl hover:bg-slate-100 transition flex items-center justify-center gap-2 active:scale-98 bg-white shadow-xs text-sm cursor-pointer"
+                >
+                  <RotateCcw className="w-4 h-4 text-slate-500" />
+                  Retake Photo
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSubmit}
+                  disabled={submitting}
+                  className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-4 rounded-xl transition flex items-center justify-center gap-2 shadow-md shadow-emerald-500/15 active:scale-98 text-sm cursor-pointer"
+                >
+                  {submitting ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin text-white" />
+                      Saving...
+                    </>
+                  ) : (
+                    'Submit & Save'
+                  )}
+                </button>
+              </div>
+            </div>
+          ) : selectedMedicine.image_url ? (
+            /* Drug already has photo and user hasn't captured a new one yet */
+            <div className="space-y-4">
+              <div className="relative aspect-video w-full overflow-hidden rounded-2xl border border-slate-200 bg-slate-900 flex items-center justify-center">
+                <img
+                  src={selectedMedicine.image_url}
+                  alt="Existing tablet"
+                  className="w-full h-full object-contain"
+                />
+                <span className="absolute top-3 left-3 bg-emerald-600 text-white px-2.5 py-1 rounded-lg text-[10px] font-bold tracking-wider shadow-xs uppercase">
+                  Current Photo
+                </span>
+              </div>
               <button
                 type="button"
-                onClick={handleSubmit}
-                disabled={submitting || (!photos.box && !photos.sheet)}
-                className="w-full bg-emerald-600 hover:bg-emerald-700 disabled:opacity-40 disabled:pointer-events-none text-white font-bold py-4 rounded-xl transition flex items-center justify-center gap-2 shadow-md shadow-emerald-500/15 active:scale-98 text-sm cursor-pointer"
+                onClick={handleCameraTrigger}
+                className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-4 rounded-xl transition flex items-center justify-center gap-2 shadow-md shadow-emerald-500/15 active:scale-98 text-sm cursor-pointer"
               >
-                {submitting ? (
-                  <>
-                    <Loader2 className="w-4 h-4 animate-spin text-white" />
-                    Saving...
-                  </>
-                ) : (
-                  'Submit & Save'
-                )}
+                <Camera className="w-4 h-4 shrink-0" />
+                Replace / Retake Photo
               </button>
-            </>
+            </div>
+          ) : (
+            /* No photo exists yet */
+            <button
+              type="button"
+              onClick={handleCameraTrigger}
+              className="w-full aspect-video border-2 border-dashed border-slate-200 hover:border-emerald-500/50 bg-white rounded-2xl flex flex-col items-center justify-center gap-3 text-slate-400 hover:text-slate-600 transition-all duration-300 group py-6 shadow-xs"
+            >
+              <div className="bg-slate-100 border border-slate-200 p-4 rounded-full group-hover:bg-emerald-50 group-hover:border-emerald-100 group-hover:text-emerald-600 transition-all">
+                <Camera className="w-7 h-7" />
+              </div>
+              <div className="text-center">
+                <span className="font-bold block text-sm text-slate-700 group-hover:text-slate-900">Open Device Camera</span>
+                <span className="text-[11px] text-slate-500 block mt-1">Tap to take a photo of the tablets</span>
+              </div>
+            </button>
           )}
         </div>
       )}
