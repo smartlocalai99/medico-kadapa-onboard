@@ -27,7 +27,18 @@ export default function HospitalsTab({
   const [loading, setLoading] = useState(false);
 
   const getSubmissionsForHospital = (hospitalId) => {
-    return submissions.filter(s => s.hospital_id === hospitalId);
+    // submissions is ordered newest-first, so the first occurrence per medicine
+    // is the latest photo. This also self-heals any legacy duplicate rows left
+    // behind by earlier replace operations that inserted instead of updating.
+    const seenMedicineIds = new Set();
+    const latestPerMedicine = [];
+    for (const s of submissions) {
+      if (s.hospital_id !== hospitalId) continue;
+      if (seenMedicineIds.has(s.medicine_id)) continue;
+      seenMedicineIds.add(s.medicine_id);
+      latestPerMedicine.push(s);
+    }
+    return latestPerMedicine;
   };
 
   const compressImage = (file) => {
@@ -248,6 +259,8 @@ export default function HospitalsTab({
     if (file && uploadingSubmission) {
       setLoading(true);
       try {
+        const oldImageUrl = uploadingSubmission.image_url;
+
         // Compress image client side
         const compressedFile = await compressImage(file);
 
@@ -282,7 +295,17 @@ export default function HospitalsTab({
 
         if (updateSubErr) throw updateSubErr;
 
-        // 5. Update local state reactively
+        // 5. Remove the previous tablet image from storage now that the new one is confirmed saved
+        const oldPath = extractStoragePath(oldImageUrl);
+        if (oldPath) {
+          try {
+            await supabase.storage.from('medicine-images').remove([oldPath]);
+          } catch (cleanupErr) {
+            console.warn('Failed to remove old tablet image from storage:', cleanupErr);
+          }
+        }
+
+        // 6. Update local state reactively
         setSubmissions(prev => prev.map(s => 
           s.id === uploadingSubmission.id ? { ...s, image_url: publicUrl } : s
         ));

@@ -95,6 +95,12 @@ export default function RecordTab({
     }
   };
 
+  const extractStoragePath = (publicUrl) => {
+    if (!publicUrl) return null;
+    const match = publicUrl.match(/\/medicine-images\/(.+)$/);
+    return match ? match[1] : null;
+  };
+
   const handleCameraTrigger = () => {
     if (fileInputRef.current) {
       fileInputRef.current.click();
@@ -216,6 +222,40 @@ export default function RecordTab({
 
       if (updateError) throw updateError;
 
+      // Find any prior submission(s) for this exact hospital+medicine so we replace
+      // instead of piling up duplicate rows with stale images left in the list.
+      const priorSubs = submissions.filter(
+        s => s.hospital_id === selectedHospital.id && s.medicine_id === selectedMedicine.id
+      );
+
+      try {
+        await supabase
+          .from('tablet_submissions')
+          .delete()
+          .eq('hospital_id', selectedHospital.id)
+          .eq('medicine_id', selectedMedicine.id);
+
+        await supabase
+          .from('tablet_submissions')
+          .insert({
+            hospital_id: selectedHospital.id,
+            medicine_id: selectedMedicine.id,
+            image_url: publicUrl,
+          });
+      } catch (logErr) {
+        console.warn('Logging to tablet_submissions failed:', logErr);
+      }
+
+      // Remove the previous tablet image(s) from storage now that the new one is saved
+      const oldPaths = priorSubs.map(s => extractStoragePath(s.image_url)).filter(Boolean);
+      if (oldPaths.length > 0) {
+        try {
+          await supabase.storage.from('medicine-images').remove(oldPaths);
+        } catch (cleanupErr) {
+          console.warn('Failed to remove old tablet image(s) from storage:', cleanupErr);
+        }
+      }
+
       // Update local state reactive arrays instantly
       setMedicines(prev => prev.map(m =>
         m.id === selectedMedicine.id ? { ...m, image_url: publicUrl } : m
@@ -232,19 +272,10 @@ export default function RecordTab({
           category: selectedMedicine.category
         }
       };
-      setSubmissions(prev => [newSub, ...prev]);
-
-      try {
-        await supabase
-          .from('tablet_submissions')
-          .insert({
-            hospital_id: selectedHospital.id,
-            medicine_id: selectedMedicine.id,
-            image_url: publicUrl,
-          });
-      } catch (logErr) {
-        console.warn('Logging to tablet_submissions failed:', logErr);
-      }
+      setSubmissions(prev => [
+        newSub,
+        ...prev.filter(s => !(s.hospital_id === selectedHospital.id && s.medicine_id === selectedMedicine.id))
+      ]);
 
       const userId = staffProfile?.id || 'anon';
       const localUploaded = localStorage.getItem(`uploads_today_${userId}`) || '0';

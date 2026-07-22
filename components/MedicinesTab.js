@@ -344,6 +344,8 @@ export default function MedicinesTab({
     if (file && uploadingMedId) {
       setLoading(true);
       try {
+        const oldImageUrl = medicines.find(m => m.id === uploadingMedId)?.image_url;
+
         // Compress image client side
         const compressedFile = await compressImage(file);
 
@@ -370,8 +372,18 @@ export default function MedicinesTab({
 
         if (updateError) throw updateError;
 
+        // Remove the previous catalog image from storage now that the new one is confirmed saved
+        const oldPath = extractStoragePath(oldImageUrl);
+        if (oldPath) {
+          try {
+            await supabase.storage.from('medicine-images').remove([oldPath]);
+          } catch (cleanupErr) {
+            console.warn('Failed to remove old tablet image from storage:', cleanupErr);
+          }
+        }
+
         // Update local state reactively
-        setMedicines(prev => prev.map(med => 
+        setMedicines(prev => prev.map(med =>
           med.id === uploadingMedId ? { ...med, image_url: publicUrl } : med
         ));
 
@@ -455,6 +467,34 @@ export default function MedicinesTab({
         </div>
       )}
 
+      {/* Search Bar */}
+      <div className="space-y-2">
+        <div className="relative">
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
+          <input
+            type="text"
+            placeholder="Search medicines..."
+            value={searchQuery}
+            onChange={handleSearchChange}
+            className="w-full bg-white border border-slate-200 rounded-2xl py-3.5 pl-12 pr-4 text-slate-900 placeholder-slate-400 focus:outline-none focus:border-emerald-500 focus:ring-3 focus:ring-emerald-500/10 transition-all text-sm font-medium"
+          />
+        </div>
+        {searchQuery.trim() && (
+          <p className="text-xs text-slate-500 font-semibold px-1">
+            {totalCount} {totalCount === 1 ? 'match' : 'matches'} found for &quot;{searchQuery.trim()}&quot;
+          </p>
+        )}
+      </div>
+
+      <input
+        type="file"
+        accept="image/*"
+        capture="environment"
+        ref={fileInputRef}
+        onChange={handleFileChange}
+        className="hidden"
+      />
+
       {loadingData && medicines.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-12 text-slate-450 gap-2">
           <Loader2 className="w-8 h-8 animate-spin text-emerald-600" />
@@ -462,7 +502,7 @@ export default function MedicinesTab({
         </div>
       ) : filteredMedicines.length === 0 ? (
         <div className="text-center py-12 border border-dashed border-slate-200 rounded-2xl bg-slate-50 text-slate-500 text-sm font-medium">
-          No medicines found
+          {searchQuery.trim() ? `No medicines found matching "${searchQuery.trim()}"` : 'No medicines found'}
         </div>
       ) : (
         <div className="grid grid-cols-2 gap-4">

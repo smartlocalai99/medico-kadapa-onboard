@@ -38,13 +38,6 @@ export default function SplashScreen({ onComplete }) {
         className="object-cover pointer-events-none"
       />
 
-      {/* Skip button in top right */}
-      <button
-        onClick={handleComplete}
-        className="absolute top-6 right-6 px-4 py-2 bg-white/10 hover:bg-white/20 active:scale-95 text-white/80 text-xs font-semibold rounded-full backdrop-blur-md border border-white/10 transition-all duration-200 cursor-pointer z-20"
-      >
-        Skip
-      </button>
     </div>
   );
 }
