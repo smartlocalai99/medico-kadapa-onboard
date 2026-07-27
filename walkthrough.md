@@ -12,13 +12,14 @@ We have completed the implementation of `medisin_tablet_app` utilizing a **compl
 - Emerald green accents (`bg-emerald-600`) for clear focal actions.
 - Renamed app to **Medico Kadapa Onboard** and integrated the custom JPEG logo (`/logo.png`) into the header navigation, loading screen, and auth templates.
 
-### 🏥 2. 5 Seeded Hospitals in Database (with Unique Codes)
-The 5 hospitals with unique tracking codes are now fully integrated into the database:
+### 🏥 2. 6 Seeded Hospitals in Database (with Unique Codes)
+The 6 hospitals with unique tracking codes are now fully integrated into the database:
 1. **ASIAN MULTI SPECIALITY HOSPITALS** (`AMSH`)
 2. **PRIME HOSPITALS** (`PRIME`)
 3. **Vedanta Hospitals** (`VEDANTA`)
 4. **PALLA Hospitals** (`PALLA`)
 5. **Sri Sri Holistic Hospitals** (`HOLISTICS`)
+6. **SHANKAR GASTRO HOSPITAL** (`SHANKAR`)
 
 We pushed the schema migration files to the remote database:
 * [0007_tablet_app_rls_policies.sql](file:///Users/vardhanreddy/Desktop/medislash/medisin_app/supabase/migrations/0007_tablet_app_rls_policies.sql)
@@ -74,7 +75,7 @@ We added advanced catalog features to the **Medicines** tab:
 ## 🚦 How to Run & Verify
 
 1. **Database Migrations:**
-   All migrations (including seeding the 5 hospitals with codes and setting RLS policies) have been pushed to your cloud Supabase database!
+   All migrations (including seeding the 6 hospitals with codes and setting RLS policies) have been pushed to your cloud Supabase database!
 
 2. **Start Dev Server:**
    ```bash
