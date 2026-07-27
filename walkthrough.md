@@ -18,7 +18,7 @@ The 5 hospitals with unique tracking codes are now fully integrated into the dat
 2. **PRIME HOSPITALS** (`PRIME`)
 3. **Vedanta Hospitals** (`VEDANTA`)
 4. **PALLA Hospitals** (`PALLA`)
-5. **Sunrise Multi Speciality Hospital** (`SUNRISE`)
+5. **Sri Sri Holistic Hospitals** (`HOLISTICS`)
 
 We pushed the schema migration files to the remote database:
 * [0007_tablet_app_rls_policies.sql](file:///Users/vardhanreddy/Desktop/medislash/medisin_app/supabase/migrations/0007_tablet_app_rls_policies.sql)
