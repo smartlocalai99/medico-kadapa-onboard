@@ -215,12 +215,19 @@ export default function RecordTab({
         .from('medicine-images')
         .getPublicUrl(fileName);
 
-      const { error: updateError } = await supabase
+      // Only set the shared catalog thumbnail if no hospital has set one yet.
+      // Conditioned in the query itself (not read-then-write) so two hospitals
+      // photographing the same drug at the same time can't clobber each other's
+      // catalog default — whichever insert lands first in Postgres wins, atomically.
+      const { data: catalogUpdateRows, error: updateError } = await supabase
         .from('medicines')
         .update({ image_url: publicUrl })
-        .eq('id', selectedMedicine.id);
+        .eq('id', selectedMedicine.id)
+        .is('image_url', null)
+        .select('id');
 
       if (updateError) throw updateError;
+      const catalogImageWasSet = !!(catalogUpdateRows && catalogUpdateRows.length > 0);
 
       // Find any prior submission(s) for this exact hospital+medicine so we replace
       // instead of piling up duplicate rows with stale images left in the list.
@@ -257,9 +264,11 @@ export default function RecordTab({
       }
 
       // Update local state reactive arrays instantly
-      setMedicines(prev => prev.map(m =>
-        m.id === selectedMedicine.id ? { ...m, image_url: publicUrl } : m
-      ));
+      if (catalogImageWasSet) {
+        setMedicines(prev => prev.map(m =>
+          m.id === selectedMedicine.id ? { ...m, image_url: publicUrl } : m
+        ));
+      }
 
       const newSub = {
         id: 'temp-' + Date.now(),
@@ -317,6 +326,15 @@ export default function RecordTab({
   const filteredMedicines = medicines.filter(m =>
     m.name.toLowerCase().includes(medicineQuery.toLowerCase())
   );
+
+  // The photo already on file for THIS hospital + medicine combo specifically.
+  // Deliberately not selectedMedicine.image_url — that field is a shared catalog
+  // default and can belong to a different hospital that photographed it first.
+  const existingHospitalPhotoUrl = selectedMedicine
+    ? submissions.find(
+        s => s.hospital_id === selectedHospital?.id && s.medicine_id === selectedMedicine.id
+      )?.image_url || null
+    : null;
 
   // If no hospital selected, show centered screen layout
   if (!selectedHospital) {
@@ -523,7 +541,7 @@ export default function RecordTab({
         <div className="bg-slate-50 border border-slate-200 rounded-3xl p-5 space-y-4 shadow-xs">
           <label className="block text-xs font-bold text-slate-500 uppercase tracking-widest flex items-center gap-2">
             <span className="bg-slate-200 text-slate-700 w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-black">2</span>
-            {selectedMedicine.image_url && !imagePreview ? 'Existing Photo' : 'Take Tablet Photo'}
+            {existingHospitalPhotoUrl && !imagePreview ? 'Existing Photo' : 'Take Tablet Photo'}
           </label>
 
           <input
@@ -541,7 +559,7 @@ export default function RecordTab({
                 <Check className="w-8 h-8 stroke-[3]" />
               </div>
               <h3 className="text-lg font-bold text-slate-850">Photo Saved Successfully!</h3>
-              <p className="text-sm text-slate-500">The tablet photo has been successfully saved to the medicine catalog.</p>
+              <p className="text-sm text-slate-500">The tablet photo has been saved for {selectedHospital.name}.</p>
             </div>
           ) : compressing ? (
             <div className="border border-slate-200 bg-white rounded-2xl p-8 flex flex-col items-center justify-center text-center space-y-3 py-12 shadow-xs animate-pulse">
@@ -593,12 +611,12 @@ export default function RecordTab({
                 </button>
               </div>
             </div>
-          ) : selectedMedicine.image_url ? (
-            /* Drug already has photo and user hasn't captured a new one yet */
+          ) : existingHospitalPhotoUrl ? (
+            /* This hospital already has a photo for this drug and user hasn't captured a new one yet */
             <div className="space-y-4">
               <div className="relative aspect-video w-full overflow-hidden rounded-2xl border border-slate-200 bg-slate-900 flex items-center justify-center">
                 <img
-                  src={selectedMedicine.image_url}
+                  src={existingHospitalPhotoUrl}
                   alt="Existing tablet"
                   className="w-full h-full object-contain"
                 />
