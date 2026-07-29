@@ -3,20 +3,29 @@ import { supabase } from '../utils/supabaseClient';
 import { Building2, ArrowLeft, Trash2, Camera, Loader2, AlertCircle, Search, ChevronRight } from 'lucide-react';
 import Swal from 'sweetalert2';
 
-export default function HospitalsTab({ 
-  hospitals, 
-  setHospitals, 
-  submissions, 
-  setSubmissions, 
-  loadingData, 
+export default function HospitalsTab({
+  hospitals,
+  setHospitals,
+  submissions,
+  setSubmissions,
+  loadingData,
   refreshData,
-  setMedicines
+  setMedicines,
+  selectedHospital,
+  setSelectedHospital
 }) {
   const [error, setError] = useState('');
 
   // Selected Hospital details view
   const [activeHospital, setActiveHospital] = useState(null);
   const [detailSearchQuery, setDetailSearchQuery] = useState('');
+
+  // Drilling into a hospital here also makes it the app's active hospital,
+  // so Record tab and the header pill are already scoped to it afterward.
+  const openHospitalDetail = (hosp) => {
+    setActiveHospital(hosp);
+    setSelectedHospital(hosp);
+  };
 
   // Reupload States
   const [uploadingSubmission, setUploadingSubmission] = useState(null);
@@ -491,11 +500,19 @@ export default function HospitalsTab({
                 className="w-full bg-white border border-slate-200 p-4 rounded-2xl flex items-center justify-between gap-4 hover:border-slate-350 hover:bg-slate-50/30 transition shadow-xs group"
               >
                 <button
-                  onClick={() => setActiveHospital(hosp)}
+                  onClick={() => openHospitalDetail(hosp)}
                   className="flex-1 text-left flex items-center gap-3 cursor-pointer active:scale-99"
                 >
-                  <div className="bg-slate-50 text-slate-600 border border-slate-100 p-2.5 rounded-xl group-hover:bg-emerald-50 group-hover:text-emerald-600 group-hover:border-emerald-100 transition-colors">
-                    <Building2 className="w-5 h-5" />
+                  <div className="bg-slate-50 text-slate-600 border border-slate-100 rounded-xl group-hover:bg-emerald-50 group-hover:text-emerald-600 group-hover:border-emerald-100 transition-colors overflow-hidden shrink-0 w-10 h-10 flex items-center justify-center">
+                    {hosp.logo_url ? (
+                      <img
+                        src={hosp.logo_url}
+                        alt=""
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <Building2 className="w-5 h-5" />
+                    )}
                   </div>
                   <div>
                     <h3 className="font-bold text-slate-850 leading-snug">{hosp.name}</h3>
@@ -524,8 +541,8 @@ export default function HospitalsTab({
                       <Trash2 className="w-3.5 h-3.5" />
                     )}
                   </button>
-                  <ChevronRight 
-                    onClick={() => setActiveHospital(hosp)}
+                  <ChevronRight
+                    onClick={() => openHospitalDetail(hosp)}
                     className="w-5 h-5 text-slate-350 group-hover:text-slate-500 group-hover:translate-x-0.5 transition-all cursor-pointer" 
                   />
                 </div>

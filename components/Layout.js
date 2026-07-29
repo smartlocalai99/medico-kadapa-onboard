@@ -37,7 +37,15 @@ export default function Layout({ children, activeTab, setActiveTab, selectedHosp
               className="flex items-center gap-1.5 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200/50 py-1.5 px-3 rounded-full text-emerald-700 font-bold transition text-[10px] uppercase cursor-pointer max-w-[140px]"
               title="Click to change location"
             >
-              <Building2 className="w-3.5 h-3.5 shrink-0" />
+              {selectedHospital.logo_url ? (
+                <img 
+                  src={selectedHospital.logo_url} 
+                  alt="" 
+                  className="w-4 h-4 rounded-full object-cover shrink-0 border border-emerald-200/40" 
+                />
+              ) : (
+                <Building2 className="w-3.5 h-3.5 shrink-0" />
+              )}
               <span className="truncate">{selectedHospital.code || selectedHospital.name}</span>
             </button>
           ) : (

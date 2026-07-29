@@ -395,7 +395,15 @@ export default function RecordTab({
                         }}
                         className="w-full text-left px-5 py-4 hover:bg-slate-55 transition-colors flex items-center gap-3 font-bold text-xs text-slate-800"
                       >
-                        <Building2 className="w-4.5 h-4.5 shrink-0 text-slate-400" />
+                        {h.logo_url ? (
+                          <img 
+                            src={h.logo_url} 
+                            alt="" 
+                            className="w-6 h-6 rounded-lg object-cover shrink-0 border border-slate-200" 
+                          />
+                        ) : (
+                          <Building2 className="w-4.5 h-4.5 shrink-0 text-slate-400" />
+                        )}
                         <span className="truncate flex-1">
                           {h.name} {h.code ? `(${h.code})` : ''}
                         </span>

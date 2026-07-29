@@ -148,6 +148,8 @@ export default function Home() {
             loadingData={loadingData}
             refreshData={fetchAllData}
             setMedicines={setMedicines}
+            selectedHospital={selectedHospital}
+            setSelectedHospital={handleHospitalChange}
           />
         );
       case 'medicines':
