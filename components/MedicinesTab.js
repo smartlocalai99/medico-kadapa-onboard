@@ -332,11 +332,9 @@ export default function MedicinesTab({
 
   const handleImageClick = (medId) => {
     setUploadingMedId(medId);
-    setTimeout(() => {
-      if (fileInputRef.current) {
-        fileInputRef.current.click();
-      }
-    }, 100);
+    if (fileInputRef.current) {
+      fileInputRef.current.click();
+    }
   };
 
   const handleFileChange = async (e) => {

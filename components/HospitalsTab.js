@@ -116,11 +116,9 @@ export default function HospitalsTab({
 
   const triggerAssetUpload = (hospId, assetType) => {
     setUploadingHospitalAsset({ hospitalId: hospId, assetType });
-    setTimeout(() => {
-      if (assetFileInputRef.current) {
-        assetFileInputRef.current.click();
-      }
-    }, 100);
+    if (assetFileInputRef.current) {
+      assetFileInputRef.current.click();
+    }
   };
 
   const handleAssetFileChange = async (e) => {
@@ -366,11 +364,9 @@ export default function HospitalsTab({
 
   const handleReuploadClick = (sub) => {
     setUploadingSubmission(sub);
-    setTimeout(() => {
-      if (fileInputRef.current) {
-        fileInputRef.current.click();
-      }
-    }, 100);
+    if (fileInputRef.current) {
+      fileInputRef.current.click();
+    }
   };
 
   const handleFileChange = async (e) => {
