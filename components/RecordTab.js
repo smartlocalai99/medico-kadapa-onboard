@@ -434,12 +434,37 @@ export default function RecordTab({
     <div className="space-y-6 text-slate-800 animate-fade-in pb-16">
 
       {/* Workspace Header */}
-      <div>
-        <h2 className="text-xl font-bold tracking-tight text-slate-900 flex items-center gap-2">
-          <Sparkles className="w-5 h-5 text-emerald-600 animate-pulse shrink-0" />
-          Upload Tablet Photo
-        </h2>
-        <p className="text-xs text-slate-500 mt-0.5">Capture medicine tablets for hospital catalog</p>
+      <div className="bg-white border border-slate-200 rounded-3xl p-4 flex items-center justify-between shadow-xs">
+        <div className="flex items-center gap-3 min-w-0">
+          <div className="w-12 h-12 rounded-2xl overflow-hidden border border-slate-200 bg-slate-50 flex items-center justify-center shrink-0">
+            {selectedHospital.logo_url ? (
+              <img src={selectedHospital.logo_url} alt={selectedHospital.name} className="w-full h-full object-cover" />
+            ) : (
+              <Building2 className="w-6 h-6 text-slate-400" />
+            )}
+          </div>
+          <div className="min-w-0">
+            <h2 className="text-base font-bold text-slate-900 leading-tight truncate">
+              {selectedHospital.name}
+            </h2>
+            {selectedHospital.doctor_name ? (
+              <div className="flex items-center gap-1.5 mt-0.5">
+                {selectedHospital.doctor_img_url && (
+                  <img src={selectedHospital.doctor_img_url} alt="" className="w-4 h-4 rounded-full object-cover border border-slate-200" />
+                )}
+                <span className="text-[11px] text-slate-500 font-semibold truncate">
+                  In-charge: {selectedHospital.doctor_name}
+                </span>
+              </div>
+            ) : (
+              <p className="text-xs text-slate-500 mt-0.5">Upload tablet photos below</p>
+            )}
+          </div>
+        </div>
+
+        {selectedHospital.doctor_img_url && !selectedHospital.doctor_name && (
+          <img src={selectedHospital.doctor_img_url} alt="Doctor" className="w-10 h-10 rounded-full object-cover border border-emerald-200 shrink-0" />
+        )}
       </div>
 
       {errorMessage && (
