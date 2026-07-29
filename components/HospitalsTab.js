@@ -713,15 +713,27 @@ export default function HospitalsTab({
                       onClick={() => openHospitalDetail(hosp)}
                       className="flex-1 text-left flex items-center gap-3 cursor-pointer active:scale-99 min-w-0"
                     >
-                      <div className="bg-slate-50 text-slate-600 border border-slate-100 rounded-xl group-hover:bg-emerald-50 group-hover:text-emerald-600 group-hover:border-emerald-100 transition-colors overflow-hidden shrink-0 w-11 h-11 flex items-center justify-center">
-                        {hosp.logo_url ? (
-                          <img
-                            src={hosp.logo_url}
-                            alt=""
-                            className="w-full h-full object-cover"
-                          />
-                        ) : (
-                          <Building2 className="w-5 h-5" />
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        <div className="bg-slate-50 text-slate-600 border border-slate-100 rounded-xl group-hover:bg-emerald-50 group-hover:text-emerald-600 group-hover:border-emerald-100 transition-colors overflow-hidden shrink-0 w-11 h-11 flex items-center justify-center">
+                          {hosp.logo_url ? (
+                            <img
+                              src={hosp.logo_url}
+                              alt=""
+                              className="w-full h-full object-cover"
+                            />
+                          ) : (
+                            <Building2 className="w-5 h-5" />
+                          )}
+                        </div>
+
+                        {hosp.doctor_img_url && (
+                          <div className="w-8 h-8 rounded-full overflow-hidden border border-emerald-200 bg-white shrink-0 shadow-2xs" title={`Doctor: ${hosp.doctor_name || 'In-Charge'}`}>
+                            <img
+                              src={hosp.doctor_img_url}
+                              alt="Doctor"
+                              className="w-full h-full object-cover"
+                            />
+                          </div>
                         )}
                       </div>
                       <div className="min-w-0 flex-1">
