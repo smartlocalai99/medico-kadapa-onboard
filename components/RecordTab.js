@@ -404,9 +404,16 @@ export default function RecordTab({
                         ) : (
                           <Building2 className="w-4.5 h-4.5 shrink-0 text-slate-400" />
                         )}
-                        <span className="truncate flex-1">
-                          {h.name} {h.code ? `(${h.code})` : ''}
-                        </span>
+                        <div className="flex flex-col min-w-0 flex-1">
+                          <span className="truncate leading-snug">
+                            {h.name} {h.code ? `(${h.code})` : ''}
+                          </span>
+                          {h.doctor_name && (
+                            <span className="text-[10px] text-slate-400 font-normal truncate">
+                              In-charge: {h.doctor_name}
+                            </span>
+                          )}
+                        </div>
                       </button>
                     ))}
                     {hospitals.length === 0 && (

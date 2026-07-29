@@ -1,6 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { supabase } from '../utils/supabaseClient';
-import { Building2, ArrowLeft, Trash2, Camera, Loader2, AlertCircle, Search, ChevronRight } from 'lucide-react';
+import { Building2, ArrowLeft, Trash2, Camera, Loader2, AlertCircle, Search, ChevronRight, UserCheck, Upload, Edit, Image } from 'lucide-react';
 import Swal from 'sweetalert2';
 
 export default function HospitalsTab({
@@ -20,6 +20,21 @@ export default function HospitalsTab({
   const [activeHospital, setActiveHospital] = useState(null);
   const [detailSearchQuery, setDetailSearchQuery] = useState('');
 
+  // Reupload States for Submissions & Hospital Assets
+  const [uploadingSubmission, setUploadingSubmission] = useState(null);
+  const [uploadingHospitalAsset, setUploadingHospitalAsset] = useState(null); // { hospitalId, assetType: 'logo' | 'doctor' }
+  const fileInputRef = useRef(null);
+  const assetFileInputRef = useRef(null);
+
+  // Doctor details editing modal / state
+  const [editingDoctorHosp, setEditingDoctorHosp] = useState(null);
+  const [doctorNameInput, setDoctorNameInput] = useState('');
+  const [savingDoctorInfo, setSavingDoctorInfo] = useState(false);
+
+  // Deletion States
+  const [deletingHospId, setDeletingHospId] = useState(null);
+  const [loading, setLoading] = useState(false);
+
   // Drilling into a hospital here also makes it the app's active hospital,
   // so Record tab and the header pill are already scoped to it afterward.
   const openHospitalDetail = (hosp) => {
@@ -27,18 +42,7 @@ export default function HospitalsTab({
     setSelectedHospital(hosp);
   };
 
-  // Reupload States
-  const [uploadingSubmission, setUploadingSubmission] = useState(null);
-  const fileInputRef = useRef(null);
-
-  // Deletion States
-  const [deletingHospId, setDeletingHospId] = useState(null);
-  const [loading, setLoading] = useState(false);
-
   const getSubmissionsForHospital = (hospitalId) => {
-    // submissions is ordered newest-first, so the first occurrence per medicine
-    // is the latest photo. This also self-heals any legacy duplicate rows left
-    // behind by earlier replace operations that inserted instead of updating.
     const seenMedicineIds = new Set();
     const latestPerMedicine = [];
     for (const s of submissions) {
@@ -110,6 +114,119 @@ export default function HospitalsTab({
     return match ? match[1] : null;
   };
 
+  const triggerAssetUpload = (hospId, assetType) => {
+    setUploadingHospitalAsset({ hospitalId: hospId, assetType });
+    setTimeout(() => {
+      if (assetFileInputRef.current) {
+        assetFileInputRef.current.click();
+      }
+    }, 100);
+  };
+
+  const handleAssetFileChange = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file || !uploadingHospitalAsset) return;
+
+    const { hospitalId, assetType } = uploadingHospitalAsset;
+    setLoading(true);
+
+    try {
+      const compressed = await compressImage(file);
+      const ext = compressed.name.split('.').pop() || 'jpg';
+      const fileName = `hospitals/${hospitalId}/${assetType}_${Date.now()}.${ext}`;
+
+      const { error: uploadErr } = await supabase.storage
+        .from('medicine-images')
+        .upload(fileName, compressed, { upsert: true });
+
+      if (uploadErr) throw uploadErr;
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('medicine-images')
+        .getPublicUrl(fileName);
+
+      const fieldToUpdate = assetType === 'logo' ? 'logo_url' : 'doctor_img_url';
+
+      const { error: updateErr } = await supabase
+        .from('hospitals')
+        .update({ [fieldToUpdate]: publicUrl })
+        .eq('id', hospitalId);
+
+      if (updateErr) throw updateErr;
+
+      setHospitals(prev => prev.map(h => h.id === hospitalId ? { ...h, [fieldToUpdate]: publicUrl } : h));
+      if (activeHospital?.id === hospitalId) {
+        setActiveHospital(prev => ({ ...prev, [fieldToUpdate]: publicUrl }));
+      }
+      if (selectedHospital?.id === hospitalId) {
+        setSelectedHospital({ ...selectedHospital, [fieldToUpdate]: publicUrl });
+      }
+
+      refreshData();
+
+      Swal.fire({
+        title: 'Uploaded!',
+        text: `${assetType === 'logo' ? 'Hospital Logo' : 'Doctor Photo'} updated successfully.`,
+        icon: 'success',
+        confirmButtonColor: '#10b981'
+      });
+    } catch (err) {
+      console.error(`Error uploading hospital ${assetType}:`, err);
+      Swal.fire({
+        title: 'Upload Failed',
+        text: err.message || 'Could not upload image.',
+        icon: 'error',
+        confirmButtonColor: '#10b981'
+      });
+    } finally {
+      setLoading(false);
+      setUploadingHospitalAsset(null);
+    }
+  };
+
+  const handleSaveDoctorName = async () => {
+    if (!editingDoctorHosp) return;
+    setSavingDoctorInfo(true);
+
+    try {
+      const nameVal = doctorNameInput.trim();
+      const { error: updateErr } = await supabase
+        .from('hospitals')
+        .update({ doctor_name: nameVal || null })
+        .eq('id', editingDoctorHosp.id);
+
+      if (updateErr) throw updateErr;
+
+      setHospitals(prev => prev.map(h => h.id === editingDoctorHosp.id ? { ...h, doctor_name: nameVal || null } : h));
+      if (activeHospital?.id === editingDoctorHosp.id) {
+        setActiveHospital(prev => ({ ...prev, doctor_name: nameVal || null }));
+      }
+      if (selectedHospital?.id === editingDoctorHosp.id) {
+        setSelectedHospital({ ...selectedHospital, doctor_name: nameVal || null });
+      }
+
+      refreshData();
+      setEditingDoctorHosp(null);
+
+      Swal.fire({
+        title: 'Updated!',
+        text: 'Doctor name updated successfully.',
+        icon: 'success',
+        confirmButtonColor: '#10b981'
+      });
+    } catch (err) {
+      console.error('Error saving doctor name:', err);
+      Swal.fire({
+        title: 'Update Failed',
+        text: err.message || 'Could not update doctor name.',
+        icon: 'error',
+        confirmButtonColor: '#10b981'
+      });
+    } finally {
+      setSavingDoctorInfo(false);
+    }
+  };
+
   const handleDeleteHospital = async (hospId, hospName) => {
     const result = await Swal.fire({
       title: 'Are you sure?',
@@ -129,13 +246,11 @@ export default function HospitalsTab({
     setError('');
 
     try {
-      // 1. Gather all file paths from submissions associated with this hospital BEFORE deletion
       const hospSubs = submissions.filter(s => s.hospital_id === hospId);
       const filePathsToDelete = hospSubs
         .map(s => extractStoragePath(s.image_url))
         .filter(Boolean);
 
-      // 2. Delete associated submissions first to satisfy foreign keys
       const { error: deleteSubsErr } = await supabase
         .from('tablet_submissions')
         .delete()
@@ -143,7 +258,6 @@ export default function HospitalsTab({
 
       if (deleteSubsErr) throw deleteSubsErr;
 
-      // 3. Now delete the hospital from DB
       const { error: deleteErr } = await supabase
         .from('hospitals')
         .delete()
@@ -151,18 +265,15 @@ export default function HospitalsTab({
 
       if (deleteErr) throw deleteErr;
 
-      // 4. Clear files from Supabase Storage
       if (filePathsToDelete.length > 0) {
         await supabase.storage
           .from('medicine-images')
           .remove(filePathsToDelete);
       }
 
-      // Update local state lists
       setHospitals(prev => prev.filter(h => h.id !== hospId));
       setSubmissions(prev => prev.filter(s => s.hospital_id !== hospId));
 
-      // Trigger background cache sync
       refreshData();
 
       Swal.fire({
@@ -204,7 +315,6 @@ export default function HospitalsTab({
 
     setLoading(true);
     try {
-      // 1. Delete file from Supabase Storage
       const storagePath = extractStoragePath(sub.image_url);
       if (storagePath) {
         await supabase.storage
@@ -212,7 +322,6 @@ export default function HospitalsTab({
           .remove([storagePath]);
       }
 
-      // 2. Delete from tablet_submissions
       const { error: deleteErr } = await supabase
         .from('tablet_submissions')
         .delete()
@@ -220,7 +329,6 @@ export default function HospitalsTab({
 
       if (deleteErr) throw deleteErr;
 
-      // 3. Set medicines.image_url to null
       const { error: updateErr } = await supabase
         .from('medicines')
         .update({ image_url: null })
@@ -228,11 +336,9 @@ export default function HospitalsTab({
 
       if (updateErr) throw updateErr;
 
-      // 4. Update local state
       setSubmissions(prev => prev.filter(s => s.id !== sub.id));
       setMedicines(prev => prev.map(m => m.id === sub.medicine_id ? { ...m, image_url: null } : m));
 
-      // Sync background cache
       refreshData();
 
       Swal.fire({
@@ -270,25 +376,20 @@ export default function HospitalsTab({
       try {
         const oldImageUrl = uploadingSubmission.image_url;
 
-        // Compress image client side
         const compressedFile = await compressImage(file);
-
         const fileExt = compressedFile.name.split('.').pop() || 'jpg';
         const fileName = `tablets/${uploadingSubmission.hospital_id}/${uploadingSubmission.medicine_id}_${Date.now()}.${fileExt}`;
         
-        // 1. Upload to storage
         const { error: uploadError } = await supabase.storage
           .from('medicine-images')
           .upload(fileName, compressedFile, { upsert: true });
 
         if (uploadError) throw uploadError;
 
-        // 2. Get Public URL
         const { data: { publicUrl } } = supabase.storage
           .from('medicine-images')
           .getPublicUrl(fileName);
 
-        // 3. Update medicines image_url in DB
         const { error: updateMedErr } = await supabase
           .from('medicines')
           .update({ image_url: publicUrl })
@@ -296,7 +397,6 @@ export default function HospitalsTab({
 
         if (updateMedErr) throw updateMedErr;
 
-        // 4. Update tablet_submissions image_url in DB
         const { error: updateSubErr } = await supabase
           .from('tablet_submissions')
           .update({ image_url: publicUrl })
@@ -304,7 +404,6 @@ export default function HospitalsTab({
 
         if (updateSubErr) throw updateSubErr;
 
-        // 5. Remove the previous tablet image from storage now that the new one is confirmed saved
         const oldPath = extractStoragePath(oldImageUrl);
         if (oldPath) {
           try {
@@ -314,7 +413,6 @@ export default function HospitalsTab({
           }
         }
 
-        // 6. Update local state reactively
         setSubmissions(prev => prev.map(s => 
           s.id === uploadingSubmission.id ? { ...s, image_url: publicUrl } : s
         ));
@@ -322,7 +420,6 @@ export default function HospitalsTab({
           m.id === uploadingSubmission.medicine_id ? { ...m, image_url: publicUrl } : m
         ));
 
-        // Sync background cache
         refreshData();
 
         Swal.fire({
@@ -347,210 +444,355 @@ export default function HospitalsTab({
     }
   };
 
-  // Render detail view list of tablets for selected hospital
   const hospitalSubmissions = activeHospital ? getSubmissionsForHospital(activeHospital.id) : [];
   const filteredSubmissions = hospitalSubmissions.filter(s => 
     s.medicines?.name?.toLowerCase().includes(detailSearchQuery.toLowerCase()) ||
     s.medicines?.category?.toLowerCase().includes(detailSearchQuery.toLowerCase())
   );
 
-  if (activeHospital) {
-    return (
-      <div className="space-y-5 text-slate-800 pb-16">
-        {/* Header with Back Button */}
-        <div className="flex items-center gap-3">
-          <button 
-            onClick={() => {
-              setActiveHospital(null);
-              setDetailSearchQuery('');
-            }}
-            className="p-2 hover:bg-slate-100 rounded-xl border border-slate-200 text-slate-600 transition cursor-pointer active:scale-95 bg-white"
-          >
-            <ArrowLeft className="w-5 h-5" />
-          </button>
-          <div>
-            <h2 className="text-base font-bold text-slate-900 leading-tight truncate max-w-[280px]">
-              {activeHospital.name}
-            </h2>
-            <p className="text-[10px] text-emerald-600 font-bold tracking-wider uppercase mt-0.5">
-              Code: {activeHospital.code || 'None'} · {hospitalSubmissions.length} Photos
-            </p>
-          </div>
-        </div>
-
-        {error && (
-          <div className="bg-red-50 border border-red-200 text-red-700 p-4 rounded-2xl flex items-start gap-3">
-            <AlertCircle className="w-5 h-5 shrink-0 mt-0.5" />
-            <p className="text-sm font-semibold">{error}</p>
-          </div>
-        )}
-
-        {/* Hidden Camera Input for Reupload */}
-        <input
-          type="file"
-          accept="image/*"
-          capture="environment"
-          ref={fileInputRef}
-          onChange={handleFileChange}
-          className="hidden"
-        />
-
-        {/* Search Bar for detailed view */}
-        <div className="relative">
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
-          <input
-            type="text"
-            placeholder="Search tablet photos..."
-            value={detailSearchQuery}
-            onChange={(e) => setDetailSearchQuery(e.target.value)}
-            className="w-full bg-white border border-slate-200 rounded-2xl py-3.5 pl-12 pr-4 text-slate-900 placeholder-slate-400 focus:outline-none focus:border-emerald-500"
-          />
-        </div>
-
-        {/* Submissions List */}
-        {loadingData && submissions.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-12 text-slate-450 gap-2">
-            <Loader2 className="w-8 h-8 animate-spin text-emerald-600" />
-            <span className="text-sm font-semibold">Updating catalog...</span>
-          </div>
-        ) : filteredSubmissions.length === 0 ? (
-          <div className="text-center py-12 border border-dashed border-slate-200 rounded-2xl bg-slate-50 text-slate-500 text-sm font-medium">
-            No tablet photos recorded here matching your search
-          </div>
-        ) : (
-          <div className="space-y-3">
-            {filteredSubmissions.map((sub) => (
-              <div 
-                key={sub.id}
-                className="bg-white border border-slate-200 p-4 rounded-2xl flex items-center justify-between gap-4 shadow-xs hover:border-slate-300 transition"
-              >
-                <div className="flex items-center gap-3 min-w-0 flex-1">
-                  <div className="relative w-12 h-12 rounded-xl overflow-hidden shrink-0 border border-slate-200 bg-slate-50">
-                    <img 
-                      src={sub.image_url} 
-                      alt={sub.medicines?.name} 
-                      className="w-full h-full object-cover"
-                    />
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <h3 className="font-bold text-slate-800 text-sm truncate leading-snug">
-                      {sub.medicines?.name || 'Unknown Tablet'}
-                    </h3>
-                    <span className="text-[10px] bg-slate-100 text-slate-500 px-2 py-0.5 rounded font-mono uppercase tracking-wider inline-block mt-1">
-                      {sub.medicines?.category || 'General'}
-                    </span>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-1.5 shrink-0">
-                  <button
-                    onClick={() => handleReuploadClick(sub)}
-                    className="text-[10px] font-bold uppercase tracking-wider px-3.5 py-2.5 rounded-xl transition-all border border-slate-200 text-slate-500 hover:bg-slate-100 hover:text-slate-700 bg-white cursor-pointer active:scale-95 flex items-center gap-1"
-                  >
-                    <Camera className="w-3.5 h-3.5" />
-                    Replace
-                  </button>
-
-                  <button
-                    onClick={() => handleDeletePhoto(sub, sub.medicines?.name)}
-                    className="p-2.5 rounded-xl border border-red-100 text-red-500 hover:bg-red-50 hover:text-red-700 transition cursor-pointer active:scale-95"
-                    title="Delete photo"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-    );
-  }
-
-  // Render General Hospitals List
   return (
     <div className="space-y-5 text-slate-800 animate-fade-in pb-16">
-      <div>
-        <h2 className="text-xl font-bold tracking-tight text-slate-900 flex items-center gap-2">
-          <Building2 className="w-5 h-5 text-emerald-600" />
-          Hospitals
-        </h2>
-        <p className="text-xs text-slate-500 mt-0.5">Select a hospital to view recorded tablets</p>
-      </div>
 
-      {error && (
-        <div className="bg-red-50 border border-red-200 text-red-700 p-4 rounded-2xl flex items-start gap-3">
-          <AlertCircle className="w-5 h-5 shrink-0 mt-0.5" />
-          <p className="text-sm font-semibold">{error}</p>
+      {/* Hidden file input for logo & doctor photos */}
+      <input
+        type="file"
+        accept="image/*"
+        ref={assetFileInputRef}
+        onChange={handleAssetFileChange}
+        className="hidden"
+      />
+
+      {/* Hidden Camera Input for Reupload Submissions */}
+      <input
+        type="file"
+        accept="image/*"
+        capture="environment"
+        ref={fileInputRef}
+        onChange={handleFileChange}
+        className="hidden"
+      />
+
+      {/* Doctor Name Edit Modal */}
+      {editingDoctorHosp && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
+          <div className="w-full max-w-sm bg-white border border-slate-200 rounded-3xl p-6 shadow-2xl space-y-4 relative animate-scale-up">
+            <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
+              <UserCheck className="w-5 h-5 text-emerald-600" /> Edit Doctor Details
+            </h3>
+            <div>
+              <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">
+                Doctor Name
+              </label>
+              <input
+                type="text"
+                value={doctorNameInput}
+                onChange={(e) => setDoctorNameInput(e.target.value)}
+                placeholder="e.g. Dr. K. Vardhan Reddy"
+                className="w-full bg-white border border-slate-200 rounded-xl py-3 px-4 text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:border-emerald-500"
+              />
+            </div>
+            <div className="flex gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => setEditingDoctorHosp(null)}
+                className="flex-1 border border-slate-200 text-slate-655 bg-white hover:bg-slate-100 font-bold py-2.5 rounded-xl text-xs active:scale-98 cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleSaveDoctorName}
+                disabled={savingDoctorInfo}
+                className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 rounded-xl flex items-center justify-center gap-1.5 text-xs shadow-md shadow-emerald-500/10 active:scale-98 cursor-pointer"
+              >
+                {savingDoctorInfo ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : 'Save Doctor'}
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
-      {loadingData && hospitals.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-12 text-slate-450 gap-2">
-          <Loader2 className="w-8 h-8 animate-spin text-emerald-600" />
-          <span className="text-sm font-semibold">Loading hospitals...</span>
-        </div>
-      ) : (
-        <div className="space-y-3">
-          {hospitals.map((hosp) => {
-            const count = getSubmissionsForHospital(hosp.id).length;
-            return (
-              <div
-                key={hosp.id}
-                className="w-full bg-white border border-slate-200 p-4 rounded-2xl flex items-center justify-between gap-4 hover:border-slate-350 hover:bg-slate-50/30 transition shadow-xs group"
+      {/* DETAILED HOSPITAL VIEW */}
+      {activeHospital ? (
+        <div className="space-y-5 text-slate-800">
+          {/* Header with Back Button */}
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <button 
+                onClick={() => {
+                  setActiveHospital(null);
+                  setDetailSearchQuery('');
+                }}
+                className="p-2 hover:bg-slate-100 rounded-xl border border-slate-200 text-slate-600 transition cursor-pointer active:scale-95 bg-white shrink-0"
               >
+                <ArrowLeft className="w-5 h-5" />
+              </button>
+              <div>
+                <h2 className="text-base font-bold text-slate-900 leading-tight truncate max-w-[200px]">
+                  {activeHospital.name}
+                </h2>
+                <p className="text-[10px] text-emerald-600 font-bold tracking-wider uppercase mt-0.5">
+                  Code: {activeHospital.code || 'None'} · {hospitalSubmissions.length} Photos
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Hospital Logo & Doctor Card */}
+          <div className="bg-white border border-slate-200 rounded-3xl p-5 shadow-xs space-y-4">
+            <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest">
+              Hospital Branding & Medical In-Charge
+            </h3>
+            
+            <div className="grid grid-cols-2 gap-3">
+              {/* Hospital Logo Block */}
+              <div className="bg-slate-50 border border-slate-200/80 rounded-2xl p-3 flex flex-col items-center justify-center text-center relative group">
+                <div className="w-16 h-16 rounded-2xl overflow-hidden border border-slate-200 bg-white flex items-center justify-center mb-2 shadow-xs">
+                  {activeHospital.logo_url ? (
+                    <img src={activeHospital.logo_url} alt="Hospital logo" className="w-full h-full object-cover" />
+                  ) : (
+                    <Building2 className="w-8 h-8 text-slate-400" />
+                  )}
+                </div>
+                <span className="text-[10px] font-bold text-slate-700 block truncate w-full">Hospital Logo</span>
                 <button
-                  onClick={() => openHospitalDetail(hosp)}
-                  className="flex-1 text-left flex items-center gap-3 cursor-pointer active:scale-99"
+                  type="button"
+                  onClick={() => triggerAssetUpload(activeHospital.id, 'logo')}
+                  className="mt-2 text-[9px] bg-white hover:bg-slate-100 text-emerald-600 border border-slate-200 px-2.5 py-1 rounded-lg font-bold flex items-center gap-1 shadow-2xs active:scale-95 cursor-pointer"
                 >
-                  <div className="bg-slate-50 text-slate-600 border border-slate-100 rounded-xl group-hover:bg-emerald-50 group-hover:text-emerald-600 group-hover:border-emerald-100 transition-colors overflow-hidden shrink-0 w-10 h-10 flex items-center justify-center">
-                    {hosp.logo_url ? (
-                      <img
-                        src={hosp.logo_url}
-                        alt=""
+                  <Upload className="w-3 h-3" /> Upload Logo
+                </button>
+              </div>
+
+              {/* Doctor Photo & Info Block */}
+              <div className="bg-slate-50 border border-slate-200/80 rounded-2xl p-3 flex flex-col items-center justify-center text-center relative group">
+                <div className="w-16 h-16 rounded-2xl overflow-hidden border border-slate-200 bg-white flex items-center justify-center mb-2 shadow-xs">
+                  {activeHospital.doctor_img_url ? (
+                    <img src={activeHospital.doctor_img_url} alt="Doctor" className="w-full h-full object-cover" />
+                  ) : (
+                    <UserCheck className="w-8 h-8 text-slate-400" />
+                  )}
+                </div>
+                <span className="text-[10px] font-bold text-slate-800 block truncate w-full">
+                  {activeHospital.doctor_name || 'No Doctor Set'}
+                </span>
+                <div className="flex gap-1.5 mt-2">
+                  <button
+                    type="button"
+                    onClick={() => triggerAssetUpload(activeHospital.id, 'doctor')}
+                    className="text-[9px] bg-white hover:bg-slate-100 text-emerald-600 border border-slate-200 px-2 py-1 rounded-lg font-bold flex items-center gap-1 shadow-2xs active:scale-95 cursor-pointer"
+                    title="Upload Doctor Image"
+                  >
+                    <Upload className="w-3 h-3" /> Image
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setEditingDoctorHosp(activeHospital);
+                      setDoctorNameInput(activeHospital.doctor_name || '');
+                    }}
+                    className="text-[9px] bg-white hover:bg-slate-100 text-slate-600 border border-slate-200 px-2 py-1 rounded-lg font-bold flex items-center gap-1 shadow-2xs active:scale-95 cursor-pointer"
+                    title="Edit Doctor Name"
+                  >
+                    <Edit className="w-3 h-3" /> Edit
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {error && (
+            <div className="bg-red-50 border border-red-200 text-red-700 p-4 rounded-2xl flex items-start gap-3">
+              <AlertCircle className="w-5 h-5 shrink-0 mt-0.5" />
+              <p className="text-sm font-semibold">{error}</p>
+            </div>
+          )}
+
+          {/* Search Bar for detailed view */}
+          <div className="relative">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
+            <input
+              type="text"
+              placeholder="Search tablet photos..."
+              value={detailSearchQuery}
+              onChange={(e) => setDetailSearchQuery(e.target.value)}
+              className="w-full bg-white border border-slate-200 rounded-2xl py-3.5 pl-12 pr-4 text-slate-900 placeholder-slate-400 focus:outline-none focus:border-emerald-500"
+            />
+          </div>
+
+          {/* Submissions List */}
+          {loadingData && submissions.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-12 text-slate-450 gap-2">
+              <Loader2 className="w-8 h-8 animate-spin text-emerald-600" />
+              <span className="text-sm font-semibold">Updating catalog...</span>
+            </div>
+          ) : filteredSubmissions.length === 0 ? (
+            <div className="text-center py-12 border border-dashed border-slate-200 rounded-2xl bg-slate-50 text-slate-500 text-sm font-medium">
+              No tablet photos recorded here matching your search
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {filteredSubmissions.map((sub) => (
+                <div 
+                  key={sub.id}
+                  className="bg-white border border-slate-200 p-4 rounded-2xl flex items-center justify-between gap-4 shadow-xs hover:border-slate-300 transition"
+                >
+                  <div className="flex items-center gap-3 min-w-0 flex-1">
+                    <div className="relative w-12 h-12 rounded-xl overflow-hidden shrink-0 border border-slate-200 bg-slate-50">
+                      <img 
+                        src={sub.image_url} 
+                        alt={sub.medicines?.name} 
                         className="w-full h-full object-cover"
                       />
-                    ) : (
-                      <Building2 className="w-5 h-5" />
-                    )}
-                  </div>
-                  <div>
-                    <h3 className="font-bold text-slate-850 leading-snug">{hosp.name}</h3>
-                    <div className="flex items-center gap-2 mt-1">
-                      <span className="text-[10px] bg-slate-100 text-slate-500 px-2 py-0.5 rounded font-mono font-black tracking-wider">
-                        CODE: {hosp.code || 'NONE'}
-                      </span>
-                      <span className="text-[10px] text-slate-400 font-bold">•</span>
-                      <span className="text-[10px] text-emerald-600 font-bold">
-                        {count} {count === 1 ? 'tablet' : 'tablets'} photographed
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <h3 className="font-bold text-slate-800 text-sm truncate leading-snug">
+                        {sub.medicines?.name || 'Unknown Tablet'}
+                      </h3>
+                      <span className="text-[10px] bg-slate-100 text-slate-500 px-2 py-0.5 rounded font-mono uppercase tracking-wider inline-block mt-1">
+                        {sub.medicines?.category || 'General'}
                       </span>
                     </div>
                   </div>
-                </button>
 
-                <div className="flex items-center gap-2.5 shrink-0">
-                  <button
-                    onClick={() => handleDeleteHospital(hosp.id, hosp.name)}
-                    disabled={deletingHospId === hosp.id}
-                    className="p-2.5 rounded-xl border border-red-100 text-red-500 hover:bg-red-50 hover:text-red-700 transition cursor-pointer active:scale-95"
-                    title="Delete Hospital"
-                  >
-                    {deletingHospId === hosp.id ? (
-                      <Loader2 className="w-3.5 h-3.5 animate-spin text-red-500" />
-                    ) : (
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <button
+                      onClick={() => handleReuploadClick(sub)}
+                      className="text-[10px] font-bold uppercase tracking-wider px-3.5 py-2.5 rounded-xl transition-all border border-slate-200 text-slate-500 hover:bg-slate-100 hover:text-slate-700 bg-white cursor-pointer active:scale-95 flex items-center gap-1"
+                    >
+                      <Camera className="w-3.5 h-3.5" />
+                      Replace
+                    </button>
+
+                    <button
+                      onClick={() => handleDeletePhoto(sub, sub.medicines?.name)}
+                      className="p-2.5 rounded-xl border border-red-100 text-red-500 hover:bg-red-50 hover:text-red-700 transition cursor-pointer active:scale-95"
+                      title="Delete photo"
+                    >
                       <Trash2 className="w-3.5 h-3.5" />
-                    )}
-                  </button>
-                  <ChevronRight
-                    onClick={() => openHospitalDetail(hosp)}
-                    className="w-5 h-5 text-slate-350 group-hover:text-slate-500 group-hover:translate-x-0.5 transition-all cursor-pointer" 
-                  />
+                    </button>
+                  </div>
                 </div>
-              </div>
-            );
-          })}
+              ))}
+            </div>
+          )}
+        </div>
+      ) : (
+        /* GENERAL HOSPITALS LIST */
+        <div className="space-y-5 text-slate-800">
+          <div>
+            <h2 className="text-xl font-bold tracking-tight text-slate-900 flex items-center gap-2">
+              <Building2 className="w-5 h-5 text-emerald-600" />
+              Hospitals
+            </h2>
+            <p className="text-xs text-slate-500 mt-0.5">Select a hospital to view recorded tablets or upload logo & doctor image</p>
+          </div>
+
+          {error && (
+            <div className="bg-red-50 border border-red-200 text-red-700 p-4 rounded-2xl flex items-start gap-3">
+              <AlertCircle className="w-5 h-5 shrink-0 mt-0.5" />
+              <p className="text-sm font-semibold">{error}</p>
+            </div>
+          )}
+
+          {loadingData && hospitals.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-12 text-slate-450 gap-2">
+              <Loader2 className="w-8 h-8 animate-spin text-emerald-600" />
+              <span className="text-sm font-semibold">Loading hospitals...</span>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {hospitals.map((hosp) => {
+                const count = getSubmissionsForHospital(hosp.id).length;
+                return (
+                  <div
+                    key={hosp.id}
+                    className="w-full bg-white border border-slate-200 p-4 rounded-2xl flex items-center justify-between gap-3 hover:border-slate-350 hover:bg-slate-50/30 transition shadow-xs group"
+                  >
+                    <button
+                      onClick={() => openHospitalDetail(hosp)}
+                      className="flex-1 text-left flex items-center gap-3 cursor-pointer active:scale-99 min-w-0"
+                    >
+                      <div className="bg-slate-50 text-slate-600 border border-slate-100 rounded-xl group-hover:bg-emerald-50 group-hover:text-emerald-600 group-hover:border-emerald-100 transition-colors overflow-hidden shrink-0 w-11 h-11 flex items-center justify-center">
+                        {hosp.logo_url ? (
+                          <img
+                            src={hosp.logo_url}
+                            alt=""
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <Building2 className="w-5 h-5" />
+                        )}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <h3 className="font-bold text-slate-850 leading-snug truncate">{hosp.name}</h3>
+                        <div className="flex items-center gap-2 mt-0.5 truncate">
+                          <span className="text-[10px] text-emerald-600 font-bold shrink-0">
+                            {count} {count === 1 ? 'tablet' : 'tablets'}
+                          </span>
+                          {hosp.doctor_name && (
+                            <>
+                              <span className="text-[10px] text-slate-400 font-bold">•</span>
+                              <span className="text-[10px] text-slate-500 font-bold truncate">
+                                {hosp.doctor_name}
+                              </span>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    </button>
+
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          triggerAssetUpload(hosp.id, 'logo');
+                        }}
+                        className="text-[9px] font-bold text-emerald-600 border border-emerald-100 bg-emerald-50/50 hover:bg-emerald-100 p-2 rounded-xl transition cursor-pointer active:scale-95 flex items-center gap-1"
+                        title="Upload Logo"
+                      >
+                        <Upload className="w-3 h-3" /> Logo
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          triggerAssetUpload(hosp.id, 'doctor');
+                        }}
+                        className="text-[9px] font-bold text-slate-600 border border-slate-200 bg-slate-50 hover:bg-slate-100 p-2 rounded-xl transition cursor-pointer active:scale-95 flex items-center gap-1"
+                        title="Upload Doctor Image"
+                      >
+                        <UserCheck className="w-3 h-3" /> Doctor
+                      </button>
+
+                      <button
+                        onClick={() => handleDeleteHospital(hosp.id, hosp.name)}
+                        disabled={deletingHospId === hosp.id}
+                        className="p-2 rounded-xl border border-red-100 text-red-500 hover:bg-red-50 hover:text-red-700 transition cursor-pointer active:scale-95"
+                        title="Delete Hospital"
+                      >
+                        {deletingHospId === hosp.id ? (
+                          <Loader2 className="w-3.5 h-3.5 animate-spin text-red-500" />
+                        ) : (
+                          <Trash2 className="w-3.5 h-3.5" />
+                        )}
+                      </button>
+                      
+                      <ChevronRight
+                        onClick={() => openHospitalDetail(hosp)}
+                        className="w-5 h-5 text-slate-350 group-hover:text-slate-500 group-hover:translate-x-0.5 transition-all cursor-pointer" 
+                      />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
       )}
     </div>
   );
 }
+
