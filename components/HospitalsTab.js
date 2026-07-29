@@ -58,7 +58,7 @@ export default function HospitalsTab({
       const reader = new FileReader();
       reader.readAsDataURL(file);
       reader.onload = (event) => {
-        const img = new Image();
+        const img = new window.Image();
         img.src = event.target.result;
         img.onload = () => {
           const canvas = document.createElement('canvas');
