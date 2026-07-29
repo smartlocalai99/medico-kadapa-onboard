@@ -449,8 +449,8 @@ export default function RecordTab({
             </h2>
             {selectedHospital.doctor_name ? (
               <div className="flex items-center gap-1.5 mt-0.5">
-                {selectedHospital.doctor_img_url && (
-                  <img src={selectedHospital.doctor_img_url} alt="" className="w-4 h-4 rounded-full object-cover border border-slate-200" />
+                {selectedHospital.doctor_image_url && (
+                  <img src={selectedHospital.doctor_image_url} alt="" className="w-4 h-4 rounded-full object-cover border border-slate-200" />
                 )}
                 <span className="text-[11px] text-slate-500 font-semibold truncate">
                   In-charge: {selectedHospital.doctor_name}
@@ -462,8 +462,8 @@ export default function RecordTab({
           </div>
         </div>
 
-        {selectedHospital.doctor_img_url && !selectedHospital.doctor_name && (
-          <img src={selectedHospital.doctor_img_url} alt="Doctor" className="w-10 h-10 rounded-full object-cover border border-emerald-200 shrink-0" />
+        {selectedHospital.doctor_image_url && !selectedHospital.doctor_name && (
+          <img src={selectedHospital.doctor_image_url} alt="Doctor" className="w-10 h-10 rounded-full object-cover border border-emerald-200 shrink-0" />
         )}
       </div>
 

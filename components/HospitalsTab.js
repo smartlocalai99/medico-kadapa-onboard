@@ -145,7 +145,7 @@ export default function HospitalsTab({
         .from('medicine-images')
         .getPublicUrl(fileName);
 
-      const fieldToUpdate = assetType === 'logo' ? 'logo_url' : 'doctor_img_url';
+      const fieldToUpdate = assetType === 'logo' ? 'logo_url' : 'doctor_image_url';
 
       const { error: updateErr } = await supabase
         .from('hospitals')
@@ -571,8 +571,8 @@ export default function HospitalsTab({
               {/* Doctor Photo & Info Block */}
               <div className="bg-slate-50 border border-slate-200/80 rounded-2xl p-3 flex flex-col items-center justify-center text-center relative group">
                 <div className="w-16 h-16 rounded-2xl overflow-hidden border border-slate-200 bg-white flex items-center justify-center mb-2 shadow-xs">
-                  {activeHospital.doctor_img_url ? (
-                    <img src={activeHospital.doctor_img_url} alt="Doctor" className="w-full h-full object-cover" />
+                  {activeHospital.doctor_image_url ? (
+                    <img src={activeHospital.doctor_image_url} alt="Doctor" className="w-full h-full object-cover" />
                   ) : (
                     <UserCheck className="w-8 h-8 text-slate-400" />
                   )}
@@ -730,10 +730,10 @@ export default function HospitalsTab({
                           )}
                         </div>
 
-                        {hosp.doctor_img_url && (
+                        {hosp.doctor_image_url && (
                           <div className="w-8 h-8 rounded-full overflow-hidden border border-emerald-200 bg-white shrink-0 shadow-2xs" title={`Doctor: ${hosp.doctor_name || 'In-Charge'}`}>
                             <img
-                              src={hosp.doctor_img_url}
+                              src={hosp.doctor_image_url}
                               alt="Doctor"
                               className="w-full h-full object-cover"
                             />
