@@ -159,7 +159,9 @@ export default function HospitalsTab({
         setActiveHospital(prev => ({ ...prev, [fieldToUpdate]: publicUrl }));
       }
       if (selectedHospital?.id === hospitalId) {
-        setSelectedHospital({ ...selectedHospital, [fieldToUpdate]: publicUrl });
+        const updated = { ...selectedHospital, [fieldToUpdate]: publicUrl };
+        setSelectedHospital(updated);
+        localStorage.setItem('medi_selected_hospital_v3', JSON.stringify(updated));
       }
 
       refreshData();
@@ -202,7 +204,9 @@ export default function HospitalsTab({
         setActiveHospital(prev => ({ ...prev, doctor_name: nameVal || null }));
       }
       if (selectedHospital?.id === editingDoctorHosp.id) {
-        setSelectedHospital({ ...selectedHospital, doctor_name: nameVal || null });
+        const updated = { ...selectedHospital, doctor_name: nameVal || null };
+        setSelectedHospital(updated);
+        localStorage.setItem('medi_selected_hospital_v3', JSON.stringify(updated));
       }
 
       refreshData();

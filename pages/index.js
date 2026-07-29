@@ -87,6 +87,23 @@ export default function Home() {
       setHospitals(hospRes.data || []);
       setMedicines(dbMedicines || []);
       setSubmissions(subRes.data || []);
+
+      // Synchronize selectedHospital with freshly fetched hospital data from DB
+      if (hospRes.data && hospRes.data.length > 0) {
+        const savedRaw = localStorage.getItem('medi_selected_hospital_v3');
+        if (savedRaw) {
+          try {
+            const savedObj = JSON.parse(savedRaw);
+            const latestHospital = hospRes.data.find(h => h.id === savedObj.id);
+            if (latestHospital) {
+              setSelectedHospital(latestHospital);
+              localStorage.setItem('medi_selected_hospital_v3', JSON.stringify(latestHospital));
+            }
+          } catch (e) {
+            console.error('Error syncing saved hospital:', e);
+          }
+        }
+      }
     } catch (err) {
       console.error('Error prefetching data:', err);
     } finally {
