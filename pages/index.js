@@ -125,6 +125,7 @@ export default function Home() {
       case 'record':
         return (
           <RecordTab
+            key={selectedHospital?.id || 'no-hospital'}
             staffProfile={staffProfile}
             selectedHospital={selectedHospital}
             setSelectedHospital={handleHospitalChange}
@@ -163,6 +164,7 @@ export default function Home() {
       default:
         return (
           <RecordTab
+            key={selectedHospital?.id || 'no-hospital'}
             staffProfile={staffProfile}
             selectedHospital={selectedHospital}
             setSelectedHospital={handleHospitalChange}

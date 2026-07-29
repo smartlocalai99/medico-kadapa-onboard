@@ -323,8 +323,10 @@ export default function RecordTab({
     }, 100);
   };
 
+  const normalizedMedicineQuery = medicineQuery.trim().toLowerCase();
   const filteredMedicines = medicines.filter(m =>
-    m.name.toLowerCase().includes(medicineQuery.toLowerCase())
+    m.hospital_id === selectedHospital?.id &&
+    m.name.toLowerCase().includes(normalizedMedicineQuery)
   );
 
   // The photo already on file for THIS hospital + medicine combo specifically.
@@ -526,7 +528,9 @@ export default function RecordTab({
                       </div>
                     )}
                     {filteredMedicines.length === 0 && !medicineQuery.trim() && (
-                      <div className="p-4 text-center text-slate-400 text-sm">No medicines found.</div>
+                      <div className="p-4 text-center text-slate-400 text-sm">
+                        No medicines found for {selectedHospital.name}.
+                      </div>
                     )}
                   </>
                 )}
