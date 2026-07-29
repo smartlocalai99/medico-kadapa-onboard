@@ -26,7 +26,7 @@ export default function MedicinesTab({
   const [error, setError] = useState('');
 
   // Upload/Camera State for creating or updating image from list
-  const [uploadingMedId, setUploadingMedId] = useState(null);
+  const uploadingMedIdRef = useRef(null);
   const fileInputRef = useRef(null);
 
   // Loading indicator states for delete actions
@@ -331,7 +331,7 @@ export default function MedicinesTab({
   };
 
   const handleImageClick = (medId) => {
-    setUploadingMedId(medId);
+    uploadingMedIdRef.current = medId;
     if (fileInputRef.current) {
       fileInputRef.current.click();
     }
@@ -339,10 +339,11 @@ export default function MedicinesTab({
 
   const handleFileChange = async (e) => {
     const file = e.target.files?.[0];
-    if (file && uploadingMedId) {
+    const medId = uploadingMedIdRef.current;
+    if (file && medId) {
       setLoading(true);
       try {
-        const oldImageUrl = medicines.find(m => m.id === uploadingMedId)?.image_url;
+        const oldImageUrl = medicines.find(m => m.id === medId)?.image_url;
 
         // Compress image client side
         const compressedFile = await compressImage(file);
@@ -366,7 +367,7 @@ export default function MedicinesTab({
         const { error: updateError } = await supabase
           .from('medicines')
           .update({ image_url: publicUrl })
-          .eq('id', uploadingMedId);
+          .eq('id', medId);
 
         if (updateError) throw updateError;
 
@@ -382,7 +383,7 @@ export default function MedicinesTab({
 
         // Update local state reactively
         setMedicines(prev => prev.map(med =>
-          med.id === uploadingMedId ? { ...med, image_url: publicUrl } : med
+          med.id === medId ? { ...med, image_url: publicUrl } : med
         ));
 
         // Sync background cache
@@ -405,7 +406,8 @@ export default function MedicinesTab({
         });
       } finally {
         setLoading(false);
-        setUploadingMedId(null);
+        uploadingMedIdRef.current = null;
+        if (e.target) e.target.value = '';
       }
     }
   };

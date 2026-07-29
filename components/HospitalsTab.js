@@ -20,9 +20,8 @@ export default function HospitalsTab({
   const [activeHospital, setActiveHospital] = useState(null);
   const [detailSearchQuery, setDetailSearchQuery] = useState('');
 
-  // Reupload States for Submissions & Hospital Assets
-  const [uploadingSubmission, setUploadingSubmission] = useState(null);
-  const [uploadingHospitalAsset, setUploadingHospitalAsset] = useState(null); // { hospitalId, assetType: 'logo' | 'doctor' }
+  const uploadingSubmissionRef = useRef(null);
+  const uploadingHospitalAssetRef = useRef(null);
   const fileInputRef = useRef(null);
   const assetFileInputRef = useRef(null);
 
@@ -115,7 +114,7 @@ export default function HospitalsTab({
   };
 
   const triggerAssetUpload = (hospId, assetType) => {
-    setUploadingHospitalAsset({ hospitalId: hospId, assetType });
+    uploadingHospitalAssetRef.current = { hospitalId: hospId, assetType };
     if (assetFileInputRef.current) {
       assetFileInputRef.current.click();
     }
@@ -123,9 +122,10 @@ export default function HospitalsTab({
 
   const handleAssetFileChange = async (e) => {
     const file = e.target.files?.[0];
-    if (!file || !uploadingHospitalAsset) return;
+    const assetMeta = uploadingHospitalAssetRef.current;
+    if (!file || !assetMeta) return;
 
-    const { hospitalId, assetType } = uploadingHospitalAsset;
+    const { hospitalId, assetType } = assetMeta;
     setLoading(true);
 
     try {
@@ -180,7 +180,8 @@ export default function HospitalsTab({
       });
     } finally {
       setLoading(false);
-      setUploadingHospitalAsset(null);
+      uploadingHospitalAssetRef.current = null;
+      if (e.target) e.target.value = '';
     }
   };
 
@@ -363,7 +364,7 @@ export default function HospitalsTab({
   };
 
   const handleReuploadClick = (sub) => {
-    setUploadingSubmission(sub);
+    uploadingSubmissionRef.current = sub;
     if (fileInputRef.current) {
       fileInputRef.current.click();
     }
@@ -371,15 +372,16 @@ export default function HospitalsTab({
 
   const handleFileChange = async (e) => {
     const file = e.target.files?.[0];
-    if (file && uploadingSubmission) {
+    const submission = uploadingSubmissionRef.current;
+    if (file && submission) {
       setLoading(true);
       try {
-        const oldImageUrl = uploadingSubmission.image_url;
+        const oldImageUrl = submission.image_url;
 
         const compressedFile = await compressImage(file);
         const fileExt = compressedFile.name.split('.').pop() || 'jpg';
-        const fileName = `tablets/${uploadingSubmission.hospital_id}/${uploadingSubmission.medicine_id}_${Date.now()}.${fileExt}`;
-        
+        const fileName = `tablets/${submission.hospital_id}/${submission.medicine_id}_${Date.now()}.${fileExt}`;
+
         const { error: uploadError } = await supabase.storage
           .from('medicine-images')
           .upload(fileName, compressedFile, { upsert: true });
@@ -390,45 +392,43 @@ export default function HospitalsTab({
           .from('medicine-images')
           .getPublicUrl(fileName);
 
-        const { error: updateMedErr } = await supabase
+        // Update medicine default if it's the first image
+        const { error: medError } = await supabase
           .from('medicines')
           .update({ image_url: publicUrl })
-          .eq('id', uploadingSubmission.medicine_id);
+          .eq('id', submission.medicine_id);
 
-        if (updateMedErr) throw updateMedErr;
+        if (medError) console.error('Medicine update err:', medError);
 
-        const { error: updateSubErr } = await supabase
+        // Update submission
+        const { error: subError } = await supabase
           .from('tablet_submissions')
           .update({ image_url: publicUrl })
-          .eq('id', uploadingSubmission.id);
+          .eq('id', submission.id);
 
-        if (updateSubErr) throw updateSubErr;
+        if (subError) throw subError;
 
-        const oldPath = extractStoragePath(oldImageUrl);
-        if (oldPath) {
-          try {
+        if (oldImageUrl) {
+          const oldPath = extractStoragePath(oldImageUrl);
+          if (oldPath) {
             await supabase.storage.from('medicine-images').remove([oldPath]);
-          } catch (cleanupErr) {
-            console.warn('Failed to remove old tablet image from storage:', cleanupErr);
           }
         }
 
-        setSubmissions(prev => prev.map(s => 
-          s.id === uploadingSubmission.id ? { ...s, image_url: publicUrl } : s
+        setSubmissions(prev => prev.map(s =>
+          s.id === submission.id ? { ...s, image_url: publicUrl } : s
         ));
-        setMedicines(prev => prev.map(m => 
-          m.id === uploadingSubmission.medicine_id ? { ...m, image_url: publicUrl } : m
+        setMedicines(prev => prev.map(m =>
+          m.id === submission.medicine_id ? { ...m, image_url: publicUrl } : m
         ));
-
         refreshData();
 
         Swal.fire({
           title: 'Success!',
-          text: 'Tablet photo updated successfully.',
+          text: 'Tablet photo updated.',
           icon: 'success',
           confirmButtonColor: '#10b981'
         });
-
       } catch (err) {
         console.error('Error reuploading photo:', err);
         Swal.fire({
@@ -439,7 +439,8 @@ export default function HospitalsTab({
         });
       } finally {
         setLoading(false);
-        setUploadingSubmission(null);
+        uploadingSubmissionRef.current = null;
+        if (e.target) e.target.value = '';
       }
     }
   };
