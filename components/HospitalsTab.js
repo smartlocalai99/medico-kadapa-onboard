@@ -1,6 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { supabase } from '../utils/supabaseClient';
-import { Building2, ArrowLeft, Trash2, Camera, Loader2, AlertCircle, Search, ChevronRight, UserCheck, Upload, Edit, Image } from 'lucide-react';
+import { Building2, ArrowLeft, Trash2, Camera, Loader2, AlertCircle, Search, ChevronRight, UserCheck, Upload, Edit } from 'lucide-react';
 import Swal from 'sweetalert2';
 
 export default function HospitalsTab({
@@ -87,10 +87,16 @@ export default function HospitalsTab({
           canvas.toBlob(
             (blob) => {
               if (blob) {
+                // Extension/type follow whatever the browser actually produced,
+                // not a hardcoded guess — some mobile browsers silently ignore
+                // the requested 'image/jpeg' mime and return a different format,
+                // which caused stored files to have a mismatched extension.
+                const mimeToExt = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp' };
+                const ext = mimeToExt[blob.type] || 'jpg';
                 const compressedFile = new File(
                   [blob],
-                  file.name.replace(/\.[^/.]+$/, '') + '_compressed.jpg',
-                  { type: 'image/jpeg', lastModified: Date.now() }
+                  file.name.replace(/\.[^/.]+$/, '') + `_compressed.${ext}`,
+                  { type: blob.type || 'image/jpeg', lastModified: Date.now() }
                 );
                 resolve(compressedFile);
               } else {
@@ -126,6 +132,8 @@ export default function HospitalsTab({
     if (!file || !assetMeta) return;
 
     const { hospitalId, assetType } = assetMeta;
+    const fieldToUpdate = assetType === 'logo' ? 'logo_url' : 'doctor_image_url';
+    const oldImageUrl = hospitals.find(h => h.id === hospitalId)?.[fieldToUpdate];
     setLoading(true);
 
     try {
@@ -143,14 +151,22 @@ export default function HospitalsTab({
         .from('medicine-images')
         .getPublicUrl(fileName);
 
-      const fieldToUpdate = assetType === 'logo' ? 'logo_url' : 'doctor_image_url';
-
       const { error: updateErr } = await supabase
         .from('hospitals')
         .update({ [fieldToUpdate]: publicUrl })
         .eq('id', hospitalId);
 
       if (updateErr) throw updateErr;
+
+      // Remove the previous logo/doctor photo from storage now that the new one is confirmed saved
+      const oldPath = extractStoragePath(oldImageUrl);
+      if (oldPath) {
+        try {
+          await supabase.storage.from('medicine-images').remove([oldPath]);
+        } catch (cleanupErr) {
+          console.warn(`Failed to remove old hospital ${assetType} from storage:`, cleanupErr);
+        }
+      }
 
       setHospitals(prev => prev.map(h => h.id === hospitalId ? { ...h, [fieldToUpdate]: publicUrl } : h));
       if (activeHospital?.id === hospitalId) {
@@ -808,4 +824,3 @@ export default function HospitalsTab({
     </div>
   );
 }
-

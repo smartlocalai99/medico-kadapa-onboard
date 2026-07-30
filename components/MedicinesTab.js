@@ -68,10 +68,16 @@ export default function MedicinesTab({
           canvas.toBlob(
             (blob) => {
               if (blob) {
+                // Extension/type follow whatever the browser actually produced,
+                // not a hardcoded guess — some mobile browsers silently ignore
+                // the requested 'image/jpeg' mime and return a different format,
+                // which caused stored files to have a mismatched extension.
+                const mimeToExt = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp' };
+                const ext = mimeToExt[blob.type] || 'jpg';
                 const compressedFile = new File(
                   [blob],
-                  file.name.replace(/\.[^/.]+$/, '') + '_compressed.jpg',
-                  { type: 'image/jpeg', lastModified: Date.now() }
+                  file.name.replace(/\.[^/.]+$/, '') + `_compressed.${ext}`,
+                  { type: blob.type || 'image/jpeg', lastModified: Date.now() }
                 );
                 resolve(compressedFile);
               } else {
@@ -349,7 +355,7 @@ export default function MedicinesTab({
         const compressedFile = await compressImage(file);
 
         const fileExt = compressedFile.name.split('.').pop() || 'jpg';
-        const fileName = `tablets/catalog/${uploadingMedId}_${Date.now()}.${fileExt}`;
+        const fileName = `tablets/catalog/${medId}_${Date.now()}.${fileExt}`;
         
         // 1. Upload to storage
         const { error: uploadError } = await supabase.storage
