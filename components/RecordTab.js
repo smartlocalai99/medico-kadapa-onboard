@@ -531,26 +531,35 @@ export default function RecordTab({
                   </div>
                 ) : (
                   <>
-                    {filteredMedicines.slice(0, 15).map((med) => (
-                      <button
-                        key={med.id}
-                        type="button"
-                        onClick={() => handleMedicineSelect(med)}
-                        className="w-full text-left px-5 py-3.5 hover:bg-slate-100 transition-colors flex items-center justify-between"
-                      >
-                        <div>
-                          <span className="font-bold text-slate-800 text-sm block">{med.name}</span>
-                          <span className="text-[10px] bg-slate-100 text-slate-500 px-2 py-0.5 rounded font-mono uppercase tracking-wider mt-1 inline-block">{med.category || 'General'}</span>
-                        </div>
-                        {med.image_url && (
-                          <img
-                            src={med.image_url}
-                            alt={med.name}
-                            className="w-8 h-8 rounded-lg object-cover border border-slate-200 shrink-0"
-                          />
-                        )}
-                      </button>
-                    ))}
+                    {filteredMedicines.slice(0, 15).map((med) => {
+                      // Same rule as "Existing Photo" below: show THIS hospital's
+                      // own photo for the drug, not the shared catalog default
+                      // (which may belong to whichever hospital photographed it first).
+                      const previewUrl = submissions.find(
+                        s => s.hospital_id === selectedHospital?.id && s.medicine_id === med.id
+                      )?.image_url;
+
+                      return (
+                        <button
+                          key={med.id}
+                          type="button"
+                          onClick={() => handleMedicineSelect(med)}
+                          className="w-full text-left px-5 py-3.5 hover:bg-slate-100 transition-colors flex items-center justify-between"
+                        >
+                          <div>
+                            <span className="font-bold text-slate-800 text-sm block">{med.name}</span>
+                            <span className="text-[10px] bg-slate-100 text-slate-500 px-2 py-0.5 rounded font-mono uppercase tracking-wider mt-1 inline-block">{med.category || 'General'}</span>
+                          </div>
+                          {previewUrl && (
+                            <img
+                              src={previewUrl}
+                              alt={med.name}
+                              className="w-8 h-8 rounded-lg object-cover border border-slate-200 shrink-0"
+                            />
+                          )}
+                        </button>
+                      );
+                    })}
 
                     {filteredMedicines.length === 0 && medicineQuery.trim() && (
                       <div className="p-4 text-center space-y-3">
