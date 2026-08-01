@@ -48,21 +48,48 @@ export default function Home() {
     }
   }, [loading]);
 
+  // Supabase/PostgREST caps any single response at the project's max-rows
+  // setting (1000 by default) no matter what .limit() the client requests —
+  // so tables larger than that silently lose everything past row 1000
+  // (e.g. medicines starting with "T" onward once the catalog passed 1000
+  // rows) unless fetched in successive .range() pages like this.
+  const fetchAllRows = async (buildQuery) => {
+    const PAGE_SIZE = 1000;
+    let rows = [];
+    let from = 0;
+    for (;;) {
+      const { data, error } = await buildQuery().range(from, from + PAGE_SIZE - 1);
+      if (error) throw error;
+      if (!data || data.length === 0) break;
+      rows = rows.concat(data);
+      if (data.length < PAGE_SIZE) break;
+      from += PAGE_SIZE;
+    }
+    return rows;
+  };
+
   const fetchAllData = async () => {
     setLoadingData(true);
     try {
-      const [hospRes, medRes, subRes] = await Promise.all([
-        supabase.from('hospitals').select('*').order('name'),
-        supabase.from('medicines').select(`
-          *,
-          tablet_submissions (
-            hospital_id,
-            hospitals (
-              name
-            )
-          )
-        `).order('name'),
-        supabase.from('tablet_submissions').select(`
+      const [hospData, dbMedicines, subData] = await Promise.all([
+        fetchAllRows(() => supabase.from('hospitals').select('*').order('name')),
+        (async () => {
+          try {
+            return await fetchAllRows(() => supabase.from('medicines').select(`
+              *,
+              tablet_submissions (
+                hospital_id,
+                hospitals (
+                  name
+                )
+              )
+            `).order('name'));
+          } catch (medErr) {
+            console.warn('Joined medicines query failed, falling back to plain select:', medErr);
+            return await fetchAllRows(() => supabase.from('medicines').select('*').order('name'));
+          }
+        })(),
+        fetchAllRows(() => supabase.from('tablet_submissions').select(`
           id,
           hospital_id,
           medicine_id,
@@ -72,29 +99,20 @@ export default function Home() {
             name,
             category
           )
-        `).order('created_at', { ascending: false })
+        `).order('created_at', { ascending: false }))
       ]);
 
-      if (hospRes.error) throw hospRes.error;
-
-      let dbMedicines = medRes.data;
-      if (medRes.error) {
-        const fallback = await supabase.from('medicines').select('*').order('name');
-        if (fallback.error) throw fallback.error;
-        dbMedicines = fallback.data;
-      }
-
-      setHospitals(hospRes.data || []);
+      setHospitals(hospData || []);
       setMedicines(dbMedicines || []);
-      setSubmissions(subRes.data || []);
+      setSubmissions(subData || []);
 
       // Synchronize selectedHospital with freshly fetched hospital data from DB
-      if (hospRes.data && hospRes.data.length > 0) {
+      if (hospData && hospData.length > 0) {
         const savedRaw = localStorage.getItem('medi_selected_hospital_v3');
         if (savedRaw) {
           try {
             const savedObj = JSON.parse(savedRaw);
-            const latestHospital = hospRes.data.find(h => h.id === savedObj.id);
+            const latestHospital = hospData.find(h => h.id === savedObj.id);
             if (latestHospital) {
               setSelectedHospital(latestHospital);
               localStorage.setItem('medi_selected_hospital_v3', JSON.stringify(latestHospital));
