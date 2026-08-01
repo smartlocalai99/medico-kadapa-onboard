@@ -61,20 +61,42 @@ export default function Home() {
           setHospitals((current) => applyHospitalChange(current, change));
 
           if (change.eventType === 'UPDATE') {
+            const savedHospital = localStorage.getItem(
+              'medi_selected_hospital_v3',
+            );
+            if (savedHospital) {
+              try {
+                if (JSON.parse(savedHospital)?.id === change.new?.id) {
+                  localStorage.setItem(
+                    'medi_selected_hospital_v3',
+                    JSON.stringify(change.new),
+                  );
+                }
+              } catch (error) {
+                console.error('Error updating saved hospital:', error);
+              }
+            }
             setSelectedHospital((current) => {
               if (current?.id !== change.new?.id) return current;
-              localStorage.setItem(
-                'medi_selected_hospital_v3',
-                JSON.stringify(change.new),
-              );
               return change.new;
             });
           }
 
           if (change.eventType === 'DELETE') {
+            const savedHospital = localStorage.getItem(
+              'medi_selected_hospital_v3',
+            );
+            if (savedHospital) {
+              try {
+                if (JSON.parse(savedHospital)?.id === change.old?.id) {
+                  localStorage.removeItem('medi_selected_hospital_v3');
+                }
+              } catch (error) {
+                console.error('Error removing saved hospital:', error);
+              }
+            }
             setSelectedHospital((current) => {
               if (current?.id !== change.old?.id) return current;
-              localStorage.removeItem('medi_selected_hospital_v3');
               return null;
             });
           }
