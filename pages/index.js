@@ -7,6 +7,7 @@ import HospitalsTab from '../components/HospitalsTab';
 import MedicinesTab from '../components/MedicinesTab';
 import { Loader2 } from 'lucide-react';
 import { Geist, Geist_Mono } from 'next/font/google';
+import { applyHospitalChange } from '../utils/hospitalDirectory.mjs';
 
 const geistSans = Geist({
   variable: '--font-geist-sans',
@@ -46,6 +47,44 @@ export default function Home() {
     if (!loading) {
       fetchAllData();
     }
+  }, [loading]);
+
+  useEffect(() => {
+    if (loading) return undefined;
+
+    const channel = supabase
+      .channel('hospital-directory')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'hospitals' },
+        (change) => {
+          setHospitals((current) => applyHospitalChange(current, change));
+
+          if (change.eventType === 'UPDATE') {
+            setSelectedHospital((current) => {
+              if (current?.id !== change.new?.id) return current;
+              localStorage.setItem(
+                'medi_selected_hospital_v3',
+                JSON.stringify(change.new),
+              );
+              return change.new;
+            });
+          }
+
+          if (change.eventType === 'DELETE') {
+            setSelectedHospital((current) => {
+              if (current?.id !== change.old?.id) return current;
+              localStorage.removeItem('medi_selected_hospital_v3');
+              return null;
+            });
+          }
+        },
+      )
+      .subscribe();
+
+    return () => {
+      void supabase.removeChannel(channel);
+    };
   }, [loading]);
 
   // Supabase/PostgREST caps any single response at the project's max-rows
