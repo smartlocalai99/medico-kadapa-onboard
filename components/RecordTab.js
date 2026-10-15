@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from '../utils/supabaseClient';
+import { chooseMedicinePhoto } from '../utils/chooseMedicinePhoto';
 import { Camera, Check, RotateCcw, Building2, Pill, Loader2, AlertCircle, Sparkles, Search, Plus } from 'lucide-react';
 
 export default function RecordTab({
@@ -34,6 +35,7 @@ export default function RecordTab({
 
   // Refs
   const fileInputRef = useRef(null);
+  const galleryInputRef = useRef(null);
   const medicineInputRef = useRef(null);
   const hospDropdownRef = useRef(null);
 
@@ -101,10 +103,8 @@ export default function RecordTab({
     return match ? match[1] : null;
   };
 
-  const handleCameraTrigger = () => {
-    if (fileInputRef.current) {
-      fileInputRef.current.click();
-    }
+  const handlePhotoTrigger = () => {
+    void chooseMedicinePhoto(fileInputRef.current, galleryInputRef.current);
   };
 
   const handleFileChange = async (e) => {
@@ -600,7 +600,7 @@ export default function RecordTab({
         <div className="bg-slate-50 border border-slate-200 rounded-3xl p-5 space-y-4 shadow-xs">
           <label className="block text-xs font-bold text-slate-500 uppercase tracking-widest flex items-center gap-2">
             <span className="bg-slate-200 text-slate-700 w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-black">2</span>
-            {existingHospitalPhotoUrl && !imagePreview ? 'Existing Photo' : 'Take Tablet Photo'}
+            {existingHospitalPhotoUrl && !imagePreview ? 'Existing Photo' : 'Add Tablet Photo'}
           </label>
 
           <input
@@ -608,6 +608,13 @@ export default function RecordTab({
             accept="image/*"
             capture="environment"
             ref={fileInputRef}
+            onChange={handleFileChange}
+            className="hidden"
+          />
+          <input
+            type="file"
+            accept="image/*"
+            ref={galleryInputRef}
             onChange={handleFileChange}
             className="hidden"
           />
@@ -646,12 +653,12 @@ export default function RecordTab({
               <div className="flex gap-3">
                 <button
                   type="button"
-                  onClick={handleCameraTrigger}
+                  onClick={handlePhotoTrigger}
                   disabled={submitting}
                   className="flex-1 border border-slate-200 text-slate-700 font-bold py-3.5 rounded-xl hover:bg-slate-100 transition flex items-center justify-center gap-2 active:scale-98 bg-white shadow-xs text-sm cursor-pointer"
                 >
                   <RotateCcw className="w-4 h-4 text-slate-500" />
-                  Retake Photo
+                  Choose Another Photo
                 </button>
                 <button
                   type="button"
@@ -685,26 +692,26 @@ export default function RecordTab({
               </div>
               <button
                 type="button"
-                onClick={handleCameraTrigger}
+                onClick={handlePhotoTrigger}
                 className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-4 rounded-xl transition flex items-center justify-center gap-2 shadow-md shadow-emerald-500/15 active:scale-98 text-sm cursor-pointer"
               >
                 <Camera className="w-4 h-4 shrink-0" />
-                Replace / Retake Photo
+                Replace Photo
               </button>
             </div>
           ) : (
             /* No photo exists yet */
             <button
               type="button"
-              onClick={handleCameraTrigger}
+              onClick={handlePhotoTrigger}
               className="w-full aspect-video border-2 border-dashed border-slate-200 hover:border-emerald-500/50 bg-white rounded-2xl flex flex-col items-center justify-center gap-3 text-slate-400 hover:text-slate-600 transition-all duration-300 group py-6 shadow-xs"
             >
               <div className="bg-slate-100 border border-slate-200 p-4 rounded-full group-hover:bg-emerald-50 group-hover:border-emerald-100 group-hover:text-emerald-600 transition-all">
                 <Camera className="w-7 h-7" />
               </div>
               <div className="text-center">
-                <span className="font-bold block text-sm text-slate-700 group-hover:text-slate-900">Open Device Camera</span>
-                <span className="text-[11px] text-slate-500 block mt-1">Tap to take a photo of the tablets</span>
+                <span className="font-bold block text-sm text-slate-700 group-hover:text-slate-900">Add Tablet Photo</span>
+                <span className="text-[11px] text-slate-500 block mt-1">Take a photo or choose from your gallery</span>
               </div>
             </button>
           )}

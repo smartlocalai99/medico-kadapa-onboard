@@ -1,5 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { supabase } from '../utils/supabaseClient';
+import { chooseMedicinePhoto } from '../utils/chooseMedicinePhoto';
 import { Building2, ArrowLeft, Trash2, Camera, Loader2, AlertCircle, Search, ChevronRight, UserCheck, Upload, Edit } from 'lucide-react';
 import Swal from 'sweetalert2';
 
@@ -23,6 +24,7 @@ export default function HospitalsTab({
   const uploadingSubmissionRef = useRef(null);
   const uploadingHospitalAssetRef = useRef(null);
   const fileInputRef = useRef(null);
+  const galleryInputRef = useRef(null);
   const assetFileInputRef = useRef(null);
 
   // Doctor details editing modal / state
@@ -381,9 +383,7 @@ export default function HospitalsTab({
 
   const handleReuploadClick = (sub) => {
     uploadingSubmissionRef.current = sub;
-    if (fileInputRef.current) {
-      fileInputRef.current.click();
-    }
+    void chooseMedicinePhoto(fileInputRef.current, galleryInputRef.current);
   };
 
   const handleFileChange = async (e) => {
@@ -485,6 +485,13 @@ export default function HospitalsTab({
         accept="image/*"
         capture="environment"
         ref={fileInputRef}
+        onChange={handleFileChange}
+        className="hidden"
+      />
+      <input
+        type="file"
+        accept="image/*"
+        ref={galleryInputRef}
         onChange={handleFileChange}
         className="hidden"
       />

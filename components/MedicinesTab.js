@@ -1,5 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { supabase } from '../utils/supabaseClient';
+import { chooseMedicinePhoto } from '../utils/chooseMedicinePhoto';
 import { Pill, Search, Plus, Loader2, X, AlertCircle, Camera, Trash2 } from 'lucide-react';
 import Swal from 'sweetalert2';
 
@@ -28,6 +29,7 @@ export default function MedicinesTab({
   // Upload/Camera State for creating or updating image from list
   const uploadingMedIdRef = useRef(null);
   const fileInputRef = useRef(null);
+  const galleryInputRef = useRef(null);
 
   // Loading indicator states for delete actions
   const [deletingId, setDeletingId] = useState(null);
@@ -338,9 +340,7 @@ export default function MedicinesTab({
 
   const handleImageClick = (medId) => {
     uploadingMedIdRef.current = medId;
-    if (fileInputRef.current) {
-      fileInputRef.current.click();
-    }
+    void chooseMedicinePhoto(fileInputRef.current, galleryInputRef.current);
   };
 
   const handleFileChange = async (e) => {
@@ -497,6 +497,13 @@ export default function MedicinesTab({
         accept="image/*"
         capture="environment"
         ref={fileInputRef}
+        onChange={handleFileChange}
+        className="hidden"
+      />
+      <input
+        type="file"
+        accept="image/*"
+        ref={galleryInputRef}
         onChange={handleFileChange}
         className="hidden"
       />
